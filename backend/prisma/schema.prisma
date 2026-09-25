@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  VIEWER
+}
+
+enum RouteStatus {
+  active
+  inactive
+}
+
+enum VehicleStatus {
+  active
+  inactive
+  maintenance
+}
+
+enum StopStatus {
+  active
+  inactive
+}
+
+enum TripStatus {
+  active
+  completed
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique @db.VarChar(80)
+  passwordHash String   @db.VarChar(255)
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Route {
+  id         String      @id @default(cuid()) @db.VarChar(50)
+  name       String      @unique @db.VarChar(255)
+  color      String      @default("#2563EB") @db.VarChar(7)
+  status     RouteStatus @default(active)
+  geometry   Json?       @db.JsonB
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  routeStops RouteStop[]
+  vehicles   Vehicle[]
+  trips      Trip[]
+
+  @@index([status])
+}
+
+model Vehicle {
+  id                String        @id @default(cuid()) @db.VarChar(50)
+  name              String        @db.VarChar(255)
+  type              String        @default("bus") @db.VarChar(50)
+  assignedRouteId   String?       @db.VarChar(50)
+  assignedRoute     Route?        @relation(fields: [assignedRouteId], references: [id], onDelete: SetNull)
+  deviceTokenHash   String?       @unique @db.VarChar(255)
+  tokenVersion      Int           @default(0)
+  status            VehicleStatus @default(inactive)
+  currentLatitude   Float?
+  currentLongitude  Float?
+  currentSpeed      Float?
+  currentHeading    Float?
+  lastLocationAt    DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  locations         VehicleLocation[]
+  trips             Trip[]
+
+  @@index([assignedRouteId])
+  @@index([status])
+}
+
+model Stop {
+  id        String     @id @default(cuid()) @db.VarChar(50)
+  nameTh    String     @db.VarChar(255)
+  nameEn    String?    @db.VarChar(255)
+  latitude  Float
+  longitude Float
+  imageUrl  String?    @db.VarChar(500)
+  status    StopStatus @default(active)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  routeStops RouteStop[]
+
+  @@index([status])
+}
+
+model RouteStop {
+  id        String   @id @default(cuid()) @db.VarChar(50)
+  routeId   String   @db.VarChar(50)
+  stopId    String   @db.VarChar(50)
+  stopOrder Int
+  createdAt DateTime @default(now())
+  route     Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stop      Stop     @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, stopId])
+  @@unique([routeId, stopOrder])
+  @@index([stopId])
+}
+
+model Trip {
+  id        String     @id @default(cuid()) @db.VarChar(50)
+  vehicleId String     @db.VarChar(50)
+  routeId   String     @db.VarChar(50)
+  status    TripStatus @default(active)
+  startedAt DateTime   @default(now())
+  endedAt   DateTime?
+  vehicle   Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  route     Route      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  locations VehicleLocation[]
+
+  @@index([vehicleId, status])
+  @@index([routeId, startedAt])
+}
+
+model VehicleLocation {
+  id         String   @id @default(cuid()) @db.VarChar(50)
+  vehicleId  String   @db.VarChar(50)
+  tripId     String?  @db.VarChar(50)
+  latitude   Float
+  longitude  Float
+  speed      Float?
+  heading    Float?
+  recordedAt DateTime @default(now())
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip       Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, recordedAt])
+  @@index([tripId, recordedAt])
+}

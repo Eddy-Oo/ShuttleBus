@@ -1,0 +1,57 @@
+# Render Blueprint — Sprint 1 + Sprint 2 (npm workspaces).
+# The API uses a paid instance because preDeployCommand (migrations) is only available on paid
+# web services. For a free trial see docs/RENDER.md ("Free-tier variant").
+services:
+  - type: web
+    name: shuttletrack-api
+    runtime: node
+    region: oregon
+    plan: 0.5c-512mb
+    numInstances: 1 # Socket.IO keeps state in memory; do not scale without a shared adapter.
+    buildCommand: npm ci --include=dev && npm run build:api
+    preDeployCommand: npm run db:deploy && npm run seed:admin --workspace @shuttletrack/backend
+    startCommand: npm run start:api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shuttletrack-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: shuttletrack-web
+    runtime: static
+    buildCommand: npm ci --include=dev && npm run build:render
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SOCKET_URL
+        sync: false
+
+databases:
+  - name: shuttletrack-db
+    databaseName: shuttletrack
+    user: shuttletrack
+    region: oregon
+    plan: 0.1c-256mb # smallest paid Postgres; see docs/RENDER.md for pricing notes
+    postgresMajorVersion: "16"
+    ipAllowList: []

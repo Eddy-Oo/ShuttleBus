@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.5
+    container_name: shuttletrack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shuttletrack
+      POSTGRES_PASSWORD: shuttletrack_dev_only
+      POSTGRES_DB: shuttletrack
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - shuttletrack-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shuttletrack -d shuttletrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  postgres-test:
+    image: postgis/postgis:16-3.5
+    profiles: [test]
+    environment:
+      POSTGRES_USER: shuttletrack
+      POSTGRES_PASSWORD: shuttletrack_test_only
+      POSTGRES_DB: shuttletrack_test
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shuttletrack -d shuttletrack_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  shuttletrack-postgres:

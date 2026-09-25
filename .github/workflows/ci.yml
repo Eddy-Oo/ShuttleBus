@@ -1,0 +1,45 @@
+name: Sprint checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_USER: shuttletrack
+          POSTGRES_PASSWORD: ci_test_only
+          POSTGRES_DB: shuttletrack_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shuttletrack -d shuttletrack_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://shuttletrack:ci_test_only@127.0.0.1:5432/shuttletrack_test?schema=public
+      ALLOW_DATABASE_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx --workspace @shuttletrack/backend prisma validate
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:simulator
+      - run: npm run test:live
+      - run: npm run build
+      - run: git diff --check
