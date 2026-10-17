@@ -12,7 +12,9 @@ const socketOverride = String.fromEnvironment('SOCKET_URL');
 String get apiUrl => apiOverride.isNotEmpty ? apiOverride : 'http://127.0.0.1:3000';
 String get socketUrl => socketOverride.isNotEmpty ? socketOverride : apiUrl;
 
-void main() => runApp(const ShuttleTrackApp());
+void main() {
+  runApp(const ShuttleTrackApp());
+}
 
 class ShuttleTrackApp extends StatelessWidget {
   const ShuttleTrackApp({super.key});
@@ -314,7 +316,7 @@ class _DriverPageState extends State<DriverPage> {
         const Text('Choose the route for this trip.', style: TextStyle(color: Colors.black54)),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
-          value: routes.any((r) => r['id']?.toString() == selectedRouteId) ? selectedRouteId : null,
+          initialValue: routes.any((r) => r['id']?.toString() == selectedRouteId) ? selectedRouteId : null,
           isExpanded: true,
           decoration: const InputDecoration(prefixIcon: Icon(Icons.alt_route_rounded), labelText: 'Route'),
           items: routes.map((r) => DropdownMenuItem<String>(value: r['id']?.toString(), child: Text(r['name']?.toString() ?? 'Route', overflow: TextOverflow.ellipsis))).toList(),
