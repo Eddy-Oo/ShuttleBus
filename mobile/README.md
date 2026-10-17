@@ -45,7 +45,7 @@ iOS: add this inside the main `<dict>` in `ios/Runner/Info.plist`:
 <string>ShuttleTrack uses your location to share the vehicle's live position during a trip.</string>
 ```
 
-The starter tracks GPS only while the app is open and a trip is active. Background tracking is not enabled. Credentials are kept in memory and are not persisted to disk.
+The vehicle JWT and vehicle ID are stored with `flutter_secure_storage` and restored when the app opens. The raw device token is not persisted. The starter tracks GPS only while the app is open and a trip is active; background tracking is not enabled.
 
 ## Backend contract
 
