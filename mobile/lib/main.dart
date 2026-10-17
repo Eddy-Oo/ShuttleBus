@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const apiOverride = String.fromEnvironment('API_URL');
 const socketOverride = String.fromEnvironment('SOCKET_URL');
-String get apiUrl => apiOverride.isNotEmpty ? apiOverride : (Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://127.0.0.1:3000');
+String get apiUrl => apiOverride.isNotEmpty ? apiOverride : 'http://127.0.0.1:3000';
 String get socketUrl => socketOverride.isNotEmpty ? socketOverride : apiUrl;
 
 void main() => runApp(const ShuttleTrackApp());
@@ -41,6 +41,7 @@ class DriverPage extends StatefulWidget {
 class _DriverPageState extends State<DriverPage> {
   final vehicleIdInput = TextEditingController();
   final deviceTokenInput = TextEditingController();
+  static const secureStorage = FlutterSecureStorage();
   String? token, vehicleId, vehicleName, tripId, selectedRouteId, message;
   List<Map<String, dynamic>> routes = [];
   Position? position;
@@ -51,6 +52,33 @@ class _DriverPageState extends State<DriverPage> {
 
   bool get loggedIn => token != null;
   bool get tripActive => tripId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    restoreSession();
+  }
+
+  Future<void> restoreSession() async {
+    try {
+      final savedToken = await secureStorage.read(key: 'vehicle_jwt');
+      final savedVehicleId = await secureStorage.read(key: 'vehicle_id');
+      if (savedToken == null || savedVehicleId == null || !mounted) return;
+      final savedRoutes = await loadRoutes(savedToken);
+      if (!mounted) return;
+      setState(() {
+        token = savedToken;
+        vehicleId = savedVehicleId;
+        vehicleName = savedVehicleId;
+        routes = savedRoutes;
+        selectedRouteId = savedRoutes.isEmpty ? null : savedRoutes.first['id']?.toString();
+        message = 'Restored saved session.';
+      });
+    } catch (_) {
+      await secureStorage.delete(key: 'vehicle_jwt');
+      await secureStorage.delete(key: 'vehicle_id');
+    }
+  }
 
   @override
   void dispose() {
@@ -101,6 +129,8 @@ class _DriverPageState extends State<DriverPage> {
       final vehicle = data['vehicle'];
       if (jwt == null || vehicle is! Map<String, dynamic>) throw Exception('Vehicle login response is incomplete.');
       final routeList = await loadRoutes(jwt);
+      await secureStorage.write(key: 'vehicle_jwt', value: jwt);
+      await secureStorage.write(key: 'vehicle_id', value: vehicle['id']?.toString() ?? id);
       if (!mounted) return;
       setState(() {
         token = jwt;
@@ -219,6 +249,8 @@ class _DriverPageState extends State<DriverPage> {
       message = 'Signed out.';
     });
     deviceTokenInput.clear();
+    await secureStorage.delete(key: 'vehicle_jwt');
+    await secureStorage.delete(key: 'vehicle_id');
   }
 
   @override
