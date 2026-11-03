@@ -7,16 +7,21 @@ import { authenticate, requireAdmin } from '../auth/middleware.js';
 import { ApiError, sendSuccess } from './errors.js';
 import { adminLoginSchema, vehicleLoginSchema } from '../validation/schemas.js';
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
+  windowMs: isDevelopment ? 60 * 1000 : 15 * 60 * 1000,
+  limit: isDevelopment ? 50 : 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   handler: (_req, res) => {
-    res.status(429).json({ success: false, error: 'Too many login attempts; try again later', code: 'RATE_LIMITED' });
+    res.status(429).json({
+      success: false,
+      error: 'Too many login attempts; try again later',
+      code: 'RATE_LIMITED',
+    });
   },
 });
-
 export const authRouter = Router();
 
 authRouter.post('/admin/login', loginLimiter, async (req, res) => {
