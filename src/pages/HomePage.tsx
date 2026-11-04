@@ -143,7 +143,7 @@ export default function HomePage() {
                   <button onClick={() => setSelectedRouteId(null)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">Show all</button>
                 )}
               </div>
-              <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[480px] sm:h-[680px] lg:h-[720px] w-full" />
+              <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[520px] sm:h-[740px] lg:h-[800px] w-full" />
             </div>
           </section>
 
