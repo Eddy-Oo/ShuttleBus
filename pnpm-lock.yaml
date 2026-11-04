@@ -155,7 +155,7 @@ importers:
         specifier: 9.0.10
         version: 9.0.10
       '@types/node':
-        specifier: 24.0.14
+        specifier: ^24.0.14
         version: 24.0.14
       prisma:
         specifier: 6.19.0
