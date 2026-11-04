@@ -26,6 +26,7 @@ jobs:
           --health-retries 15
     env:
       DATABASE_URL: postgresql://shuttletrack:ci_test_only@127.0.0.1:5432/shuttletrack_test?schema=public
+      DIRECT_URL: postgresql://shuttletrack:ci_test_only@127.0.0.1:5432/shuttletrack_test?schema=public
       ALLOW_DATABASE_TESTS: '1'
     steps:
       - uses: actions/checkout@v4
