@@ -149,9 +149,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-slate-100">
-              <p className="text-xs text-slate-400 text-center">Demo: admin / admin123</p>
-            </div>
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">ShuttleTrack &copy; 2026 &mdash; Rangsit University</p>
