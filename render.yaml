@@ -15,7 +15,7 @@ services:
 
     buildCommand: npm ci --include=dev && npm run build:api
 
-    startCommand: npm run db:deploy && npm run seed:admin --workspace @shuttletrack/backend && npm run start:api
+    startCommand: npm run db:deploy && npm run db:seed && npm run start:api
 
     healthCheckPath: /health
 
