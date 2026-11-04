@@ -21,6 +21,10 @@ services:
         fromDatabase:
           name: shuttletrack-db
           property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: shuttletrack-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_USERNAME
