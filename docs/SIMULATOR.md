@@ -13,7 +13,7 @@ Vehicle login → Load assigned route → Start trip
 
 - Node 22 or 24, `npm install` from the repository root.
 - Running API with migrations applied and a route with LineString geometry (the seed provides three).
-- An **active** vehicle assigned to that route (seed: `v-1`→Blue, `v-2`→Green, `v-3`→Red).
+- An **active** vehicle assigned to that route (seed: `v-1` and `v-5`→Blue, `v-2` and `v-6`→Green, `v-3` and `v-7`→Red). The seed creates seven sample vehicles total; `v-4` is in maintenance.
 - A device credential — either:
   - **A (recommended):** Admin → Vehicles → key icon → copy the one-time token into `SIM_DEVICE_TOKEN`, or
   - **B (local/demo):** leave `SIM_DEVICE_TOKEN` empty and set `SIM_ADMIN_USERNAME` / `SIM_ADMIN_PASSWORD`. The simulator rotates the vehicle's token on every run, which revokes previously issued tokens for that vehicle.
@@ -31,6 +31,9 @@ Several vehicles at once (each in its own terminal, env vars override the file):
 ```bash
 SIM_VEHICLE_ID=v-1 SIM_LOOPS=0 npm run simulate
 SIM_VEHICLE_ID=v-2 SIM_LOOPS=0 npm run simulate
+SIM_VEHICLE_ID=v-5 SIM_LOOPS=0 npm run simulate
+SIM_VEHICLE_ID=v-6 SIM_LOOPS=0 npm run simulate
+SIM_VEHICLE_ID=v-7 SIM_LOOPS=0 npm run simulate
 ```
 
 For Render, set `SIM_API_URL` to the API's HTTPS origin (not the website URL). Remote plain-HTTP URLs are rejected.
@@ -49,6 +52,10 @@ For Render, set `SIM_API_URL` to the API's HTTPS origin (not the website URL). R
 Each point carries a heading computed from the segment bearing and a constant nominal speed (18 km/h). This is for visualization, not a physical model.
 
 `npm run simulate -- --help` prints a short reminder. Never put credentials in a `VITE_*` variable.
+
+## Neon seed data
+
+The Render API start command runs database migrations and then `npm run db:seed`. The seed safely upserts the sample campus stops, three route geometries, and seven vehicles. Existing records with those IDs are left unchanged. It does not create GPS movement by itself; run one or more simulator processes to start trips and write GPS points to `VehicleLocation` in Neon.
 
 ## Demo acceptance (Sprint 2 result)
 
