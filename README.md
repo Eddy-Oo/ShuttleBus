@@ -35,6 +35,7 @@ Campus shuttle bus tracking system for Rangsit University.
 The project includes an Express/Prisma/PostGIS backend, API-connected Public Web and Admin Dashboard, Socket.IO vehicle tracking, route geometry, and a vehicle simulator. No native mobile application is included.
 
 - [Sprint coverage and mobile preparation](docs/SPRINTS.md)
+- [Neon PostgreSQL setup (hosted database)](docs/NEON.md)
 - [Render deployment runbook](docs/RENDER.md)
 - [Vehicle simulator demo](docs/SIMULATOR.md)
 - [Test suites and acceptance checklist](docs/TESTING.md)
@@ -49,15 +50,24 @@ Use **Node 22 or 24** and **npm** (npm workspaces: root = website, `backend/` = 
 npm install
 ```
 
-### 2. Database (PostgreSQL + PostGIS)
+### 2. Database (choose local Docker or Neon)
+
+**Local PostgreSQL + PostGIS:**
 
 ```bash
-npm run db:up                       # docker compose: postgis/postgis:16-3.5 on 127.0.0.1:5432
+npm run db:up
 cp backend/.env.example backend/.env
+```
+
+**Neon PostgreSQL:** create a Neon project, copy its pooled connection string into `DATABASE_URL` and its direct connection string into `DIRECT_URL` in `backend/.env`. Follow [docs/NEON.md](docs/NEON.md). Do not run `npm run db:up` when using Neon.
+
+Then, for either database:
+
+```bash
 # edit backend/.env: set JWT_SECRET (32+ chars) and ADMIN_PASSWORD (12+ chars)
-npm run db:generate                 # Prisma client
-npm run db:deploy                   # apply migrations (use db:migrate when authoring new ones)
-npm run db:seed                     # admin + 3 routes, 10 stops, 4 vehicles, RouteStops, geometry
+npm run db:generate
+npm run db:deploy
+npm run db:seed
 ```
 
 ### 3. Run
