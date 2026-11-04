@@ -194,7 +194,7 @@ export default function DashboardPage() {
             </select>
           </label>
         </div>
-        <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[560px] lg:h-[680px] w-full" />
+        <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[620px] lg:h-[760px] w-full" />
         <div className="flex flex-wrap gap-3 px-5 py-3 border-t border-slate-100">
           {shownRoutes.map(r => (
             <span key={r.id} className="inline-flex items-center gap-1.5 text-xs text-slate-600">
