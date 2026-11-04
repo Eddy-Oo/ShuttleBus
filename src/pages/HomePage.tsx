@@ -109,9 +109,6 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <RealtimeStatus status={realtimeStatus} />
-            <a href="/login" className="text-xs font-medium text-slate-500 hover:text-blue-600 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-50">
-              Admin
-            </a>
           </div>
         </div>
       </header>
@@ -146,7 +143,7 @@ export default function HomePage() {
                   <button onClick={() => setSelectedRouteId(null)} className="text-xs text-blue-600 hover:underline whitespace-nowrap">Show all</button>
                 )}
               </div>
-              <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[360px] sm:h-[500px] w-full" />
+              <LeafletMap markers={mapMarkers} routePaths={routePaths} className="h-[480px] sm:h-[680px] lg:h-[720px] w-full" />
             </div>
           </section>
 
