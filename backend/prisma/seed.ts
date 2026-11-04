@@ -28,6 +28,9 @@ const vehicles = [
   { id: 'v-2', name: 'Shuttle Bus 02', type: 'bus', assignedRouteId: 'route-2', status: 'active' as const },
   { id: 'v-3', name: 'Shuttle Bus 03', type: 'minibus', assignedRouteId: 'route-3', status: 'active' as const },
   { id: 'v-4', name: 'Shuttle Bus 04', type: 'bus', assignedRouteId: null, status: 'maintenance' as const },
+  { id: 'v-5', name: 'Shuttle Bus 05', type: 'bus', assignedRouteId: 'route-1', status: 'active' as const },
+  { id: 'v-6', name: 'Shuttle Bus 06', type: 'minibus', assignedRouteId: 'route-2', status: 'active' as const },
+  { id: 'v-7', name: 'Shuttle Bus 07', type: 'bus', assignedRouteId: 'route-3', status: 'active' as const },
 ];
 
 async function main() {
