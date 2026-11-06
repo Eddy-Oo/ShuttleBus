@@ -74,12 +74,17 @@ class _DriverPageState extends State<DriverPage> {
       final savedToken = await secureStorage.read(key: 'vehicle_jwt');
       final savedVehicleId = await secureStorage.read(key: 'vehicle_id');
       if (savedToken == null || savedVehicleId == null || !mounted) return;
+      // Always recover the vehicle identity from the backend token.
+      // This prevents an old/stale locally saved vehicle ID being paired with a different JWT.
+      final vehicle = await loadMyVehicle(savedToken);
+      final authenticatedVehicleId = vehicle['id'].toString();
       final savedRoutes = await loadRoutes(savedToken);
       if (!mounted) return;
+      await secureStorage.write(key: 'vehicle_id', value: authenticatedVehicleId);
       setState(() {
         token = savedToken;
-        vehicleId = savedVehicleId;
-        vehicleName = savedVehicleId;
+        vehicleId = authenticatedVehicleId;
+        vehicleName = vehicle['name']?.toString() ?? authenticatedVehicleId;
         routes = savedRoutes;
         selectedRouteId = savedRoutes.isEmpty ? null : savedRoutes.first['id']?.toString();
         message = 'Restored saved session.';
@@ -115,6 +120,16 @@ class _DriverPageState extends State<DriverPage> {
     return data is Map<String, dynamic> ? data : decoded;
   }
 
+  Future<Map<String, dynamic>> loadMyVehicle(String jwt) async {
+    final response = await http.get(
+      Uri.parse('$apiUrl/api/vehicles/me'),
+      headers: {'Authorization': 'Bearer $jwt'},
+    );
+    final data = unwrap(response);
+    if (data['id'] == null) throw Exception('The authenticated vehicle could not be identified.');
+    return data;
+  }
+
   Future<List<Map<String, dynamic>>> loadRoutes(String jwt) async {
     final response = await http.get(Uri.parse('$apiUrl/api/routes'), headers: {'Authorization': 'Bearer $jwt'});
     final decoded = jsonDecode(response.body);
@@ -140,14 +155,19 @@ class _DriverPageState extends State<DriverPage> {
       final jwt = data['token'] as String?;
       final vehicle = data['vehicle'];
       if (jwt == null || vehicle is! Map<String, dynamic>) throw Exception('Vehicle login response is incomplete.');
+      final authenticatedVehicle = await loadMyVehicle(jwt);
+      final authenticatedVehicleId = authenticatedVehicle['id'].toString();
+      if (authenticatedVehicleId != vehicle['id']?.toString()) {
+        throw Exception('Vehicle login identity did not match the backend session. Please sign in again.');
+      }
       final routeList = await loadRoutes(jwt);
       await secureStorage.write(key: 'vehicle_jwt', value: jwt);
-      await secureStorage.write(key: 'vehicle_id', value: vehicle['id']?.toString() ?? id);
+      await secureStorage.write(key: 'vehicle_id', value: authenticatedVehicleId);
       if (!mounted) return;
       setState(() {
         token = jwt;
-        vehicleId = vehicle['id']?.toString() ?? id;
-        vehicleName = vehicle['name']?.toString() ?? id;
+        vehicleId = authenticatedVehicleId;
+        vehicleName = authenticatedVehicle['name']?.toString() ?? authenticatedVehicleId;
         routes = routeList;
         selectedRouteId = routeList.isEmpty ? null : routeList.first['id']?.toString();
         message = routeList.isEmpty ? 'Signed in, but no active routes were found.' : 'Signed in successfully.';
@@ -177,6 +197,16 @@ class _DriverPageState extends State<DriverPage> {
     setState(() { busy = true; message = null; });
     String? createdTripId;
     try {
+      // Reconfirm identity from the JWT immediately before creating the trip
+      // and publishing GPS. Never trust a stale locally cached vehicle ID.
+      final authenticatedVehicle = await loadMyVehicle(token!);
+      final authenticatedVehicleId = authenticatedVehicle['id'].toString();
+      if (authenticatedVehicleId != vehicleId) {
+        setState(() {
+          vehicleId = authenticatedVehicleId;
+          vehicleName = authenticatedVehicle['name']?.toString() ?? authenticatedVehicleId;
+        });
+      }
       // Real phones publish their actual GPS. Flutter Web uses route geometry
       // as a demo GPS source so the map can move during browser testing.
       if (!kIsWeb && !await requestLocationPermission()) return;
