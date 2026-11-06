@@ -52,6 +52,10 @@ class _DriverPageState extends State<DriverPage> {
   DateTime? lastSent;
   StreamSubscription<Position>? gpsSubscription;
   Timer? routeSimulationTimer;
+  Timer? elapsedTimer;
+  DateTime? tripStartedAt;
+  Duration elapsed = Duration.zero;
+  double? latestHeading, latestSpeedKmh, latestAccuracy;
   String? latestCoordinateLabel;
   io.Socket? socket;
   bool busy = false, sharing = false, hideToken = true;
@@ -90,6 +94,7 @@ class _DriverPageState extends State<DriverPage> {
   void dispose() {
     gpsSubscription?.cancel();
     routeSimulationTimer?.cancel();
+    elapsedTimer?.cancel();
     socket?.dispose();
     vehicleIdInput.dispose();
     deviceTokenInput.dispose();
@@ -190,6 +195,13 @@ class _DriverPageState extends State<DriverPage> {
       if (!mounted) return;
       setState(() {
         tripId = createdTripId;
+        tripStartedAt = DateTime.now();
+        elapsed = Duration.zero;
+        elapsedTimer?.cancel();
+        elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted || tripStartedAt == null) return;
+          setState(() => elapsed = DateTime.now().difference(tripStartedAt!));
+        });
         message = 'Trip created. Connecting to live tracking...';
       });
 
@@ -261,6 +273,9 @@ class _DriverPageState extends State<DriverPage> {
     setState(() {
       position = firstFix;
       latestCoordinateLabel = '${firstFix.latitude.toStringAsFixed(6)}, ${firstFix.longitude.toStringAsFixed(6)}';
+      latestHeading = firstFix.heading;
+      latestSpeedKmh = firstFix.speed.isFinite ? math.max(0, firstFix.speed * 3.6) : 0;
+      latestAccuracy = firstFix.accuracy;
       sharing = true;
     });
     sendGps(firstFix);
@@ -272,6 +287,9 @@ class _DriverPageState extends State<DriverPage> {
       setState(() {
         position = fix;
         latestCoordinateLabel = '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}';
+        latestHeading = fix.heading;
+        latestSpeedKmh = fix.speed.isFinite ? math.max(0, fix.speed * 3.6) : 0;
+        latestAccuracy = fix.accuracy;
       });
       sendGps(fix);
     }, onError: (Object error) => inform('GPS error: $error'));
@@ -357,6 +375,9 @@ class _DriverPageState extends State<DriverPage> {
       final heading = (math.atan2(dx, dy) * 180 / math.pi + 360) % 360;
       setState(() {
         latestCoordinateLabel = '${point[1].toStringAsFixed(6)}, ${point[0].toStringAsFixed(6)}';
+        latestHeading = heading;
+        latestSpeedKmh = 18.0;
+        latestAccuracy = 5.0;
         sharing = true;
       });
       sendCoordinates(point[1], point[0], speed: 5.0, heading: heading);
@@ -419,10 +440,16 @@ class _DriverPageState extends State<DriverPage> {
       gpsSubscription = null;
       routeSimulationTimer?.cancel();
       routeSimulationTimer = null;
+      elapsedTimer?.cancel();
+      elapsedTimer = null;
       socket?.dispose();
       socket = null;
       if (!mounted) return;
-      setState(() { tripId = null; sharing = false; message = 'Trip ended. GPS sharing stopped.'; });
+      setState(() {
+        tripId = null; sharing = false; tripStartedAt = null; elapsed = Duration.zero;
+        latestHeading = null; latestSpeedKmh = null; latestAccuracy = null;
+        message = 'Trip ended. GPS sharing stopped.';
+      });
     } catch (e) { inform(e.toString().replaceFirst('Exception: ', '')); }
     finally { if (mounted) setState(() => busy = false); }
   }
@@ -436,6 +463,8 @@ class _DriverPageState extends State<DriverPage> {
     setState(() {
       token = null; vehicleId = null; vehicleName = null; routes = [];
       selectedRouteId = null; position = null; lastSent = null; latestCoordinateLabel = null; sharing = false;
+      tripStartedAt = null; elapsed = Duration.zero; latestHeading = null; latestSpeedKmh = null; latestAccuracy = null;
+      elapsedTimer?.cancel();
       message = 'Signed out.';
     });
     deviceTokenInput.clear();
@@ -445,13 +474,22 @@ class _DriverPageState extends State<DriverPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ShuttleTrack', style: TextStyle(fontWeight: FontWeight.w800)),
-        Text('DRIVER APP', style: TextStyle(fontSize: 10, letterSpacing: 2)),
-      ]),
-      actions: [if (loggedIn) IconButton(onPressed: busy ? null : logout, icon: const Icon(Icons.logout_rounded)), const SizedBox(width: 8)],
-    ),
+    backgroundColor: Colors.white,
+    appBar: loggedIn
+        ? AppBar(
+            backgroundColor: const Color(0xFFC05B8D),
+            elevation: 0,
+            centerTitle: true,
+            title: Text(vehicleId ?? 'Vehicle', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            leading: IconButton(onPressed: tripActive ? null : logout, icon: const Icon(Icons.arrow_back, size: 30)),
+            actions: [IconButton(onPressed: busy || tripActive ? null : logout, icon: const Icon(Icons.logout_rounded))],
+          )
+        : AppBar(
+            title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('ShuttleTrack', style: TextStyle(fontWeight: FontWeight.w800)),
+              Text('DRIVER APP', style: TextStyle(fontSize: 10, letterSpacing: 2)),
+            ]),
+          ),
     body: SafeArea(child: loggedIn ? dashboard() : loginView()),
   );
 
@@ -484,68 +522,135 @@ class _DriverPageState extends State<DriverPage> {
 
   Widget dashboard() {
     Map<String, dynamic>? selected;
-    for (final route in routes) { if (route['id']?.toString() == selectedRouteId) selected = route; }
-    return ListView(padding: const EdgeInsets.all(18), children: [
-      Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('DRIVER CONTROL', style: TextStyle(fontSize: 11, letterSpacing: 1.4, fontWeight: FontWeight.w800, color: Colors.black54)),
-          const SizedBox(height: 5),
-          Text(vehicleName ?? 'Vehicle', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-          Text('Vehicle ID: ${vehicleId ?? '-'}', style: const TextStyle(color: Colors.black54)),
-        ])),
-        Chip(label: Text(tripActive ? 'ON TRIP' : 'OFF DUTY'), backgroundColor: tripActive ? const Color(0xFFD8F8E8) : const Color(0xFFE5EBF2)),
-      ]),
-      const SizedBox(height: 18),
-      gpsCard(),
-      const SizedBox(height: 16),
-      Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Assigned route', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 5),
-        const Text('Choose the route for this trip.', style: TextStyle(color: Colors.black54)),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          initialValue: routes.any((r) => r['id']?.toString() == selectedRouteId) ? selectedRouteId : null,
-          isExpanded: true,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.alt_route_rounded), labelText: 'Route'),
-          items: routes.map((r) => DropdownMenuItem<String>(value: r['id']?.toString(), child: Text(r['name']?.toString() ?? 'Route', overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: tripActive || busy ? null : (value) => setState(() => selectedRouteId = value),
+    for (final route in routes) {
+      if (route['id']?.toString() == selectedRouteId) selected = route;
+    }
+    final heading = latestHeading ?? 0;
+    final speed = latestSpeedKmh ?? 0;
+    final accuracy = latestAccuracy ?? 0;
+    final coordinateParts = (latestCoordinateLabel ?? '0.000000, 0.000000').split(',');
+    final latitude = coordinateParts.isNotEmpty ? coordinateParts[0].trim() : '0.000000';
+    final longitude = coordinateParts.length > 1 ? coordinateParts[1].trim() : '0.000000';
+
+    return Stack(
+      children: [
+        Positioned(top: 0, left: 0, right: 0, height: 210,
+          child: Container(color: const Color(0xFFC05B8D))),
+        Positioned.fill(
+          top: 170,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(38)),
+            ),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 76, 24, 30),
+              children: [
+                sectionTitle(Icons.history, 'Time'),
+                const SizedBox(height: 24),
+                metricRow(Icons.timer_outlined, 'Time Elapsed', formatDuration(elapsed), iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                sectionTitle(Icons.phone_android, 'Phone Sensor (Local GPS)'),
+                const SizedBox(height: 22),
+                metricRow(Icons.directions_bus_filled, 'Station', tripActive ? 'En Route' : 'Waiting', iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.navigation, 'Heading Direction', '${heading.toStringAsFixed(1)}°', iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.my_location, 'Accuracy', tripActive ? '${accuracy.toStringAsFixed(0)} m' : '—', iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.access_time, 'Last Update', lastSent == null ? '—' : TimeOfDay.fromDateTime(lastSent!).format(context), iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.info, 'Ongoing Speed', '${speed.toStringAsFixed(1)} km/h', iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.location_on, 'Latitude', latitude, iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                metricRow(Icons.location_on, 'Longitude', longitude, iconColor: const Color(0xFF536B75)),
+                const Divider(height: 28),
+                const SizedBox(height: 12),
+                sectionTitle(Icons.alt_route, 'Assigned Route'),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: routes.any((r) => r['id']?.toString() == selectedRouteId) ? selectedRouteId : null,
+                  isExpanded: true,
+                  decoration: const InputDecoration(prefixIcon: Icon(Icons.alt_route_rounded), labelText: 'Select route'),
+                  items: routes.map((r) => DropdownMenuItem<String>(
+                    value: r['id']?.toString(),
+                    child: Text(r['name']?.toString() ?? 'Route', overflow: TextOverflow.ellipsis),
+                  )).toList(),
+                  onChanged: tripActive || busy ? null : (value) => setState(() => selectedRouteId = value),
+                ),
+                if (selected != null) ...[const SizedBox(height: 14), stopsView(selected)],
+                const SizedBox(height: 18),
+                messageView(),
+                const SizedBox(height: 14),
+                const Text('GPS tracking works while this app is open. On a phone, allow location permission. In Chrome, the app simulates movement along the selected route.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4)),
+              ],
+            ),
+          ),
         ),
-        if (selected != null) ...[const SizedBox(height: 14), stopsView(selected)],
-      ]))),
-      const SizedBox(height: 16),
-      SizedBox(height: 54, child: FilledButton.icon(
-        style: tripActive ? FilledButton.styleFrom(backgroundColor: const Color(0xFFB42318)) : null,
-        onPressed: busy ? null : (tripActive ? endTrip : startTrip),
-        icon: Icon(tripActive ? Icons.stop_rounded : Icons.play_arrow_rounded),
-        label: Text(tripActive ? 'End trip' : 'Start trip', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      )),
-      const SizedBox(height: 12),
-      messageView(),
-      const SizedBox(height: 16),
-      const Text('GPS sharing works while a trip is active and this app is open.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.black54)),
-    ]);
+        Positioned(
+          top: 185, left: 24,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(40),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6))],
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.circle, size: 13, color: sharing ? const Color(0xFF249653) : Colors.grey),
+              const SizedBox(width: 12),
+              Text(sharing ? 'Tracking Activated' : 'Tracking Deactivated',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF666666))),
+            ]),
+          ),
+        ),
+        Positioned(
+          bottom: 26, left: 0, right: 0,
+          child: Center(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: tripActive ? const Color(0xFFFFE8E6) : const Color(0xFFE7F6E9),
+                foregroundColor: tripActive ? const Color(0xFFB42318) : const Color(0xFF287B3D),
+                elevation: 5,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              onPressed: busy ? null : (tripActive ? endTrip : startTrip),
+              icon: Icon(tripActive ? Icons.stop_circle_outlined : Icons.my_location, size: 24),
+              label: Text(busy ? 'Please wait...' : (tripActive ? 'Stop Tracking' : 'Start Tracking'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget gpsCard() {
-    final fix = position;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF10243A), Color(0xFF1E425D)]), borderRadius: BorderRadius.circular(22)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Icon(Icons.my_location_rounded, color: Color(0xFF20B981)),
-          const SizedBox(width: 8),
-          const Expanded(child: Text('LIVE GPS STATUS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1))),
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: sharing ? const Color(0xFF20B981) : Colors.orangeAccent, shape: BoxShape.circle)),
-        ]),
-        const SizedBox(height: 18),
-        Text(latestCoordinateLabel ?? (fix == null ? 'Waiting for GPS' : '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 7),
-        Text(fix == null ? 'Coordinates appear after a GPS fix.' : 'Accuracy ±${fix.accuracy.toStringAsFixed(0)} m  ·  Speed ${(fix.speed * 3.6).toStringAsFixed(1)} km/h', style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 12)),
-        const SizedBox(height: 14),
-        Text(lastSent == null ? 'No GPS update confirmed yet' : 'Last confirmed: ${TimeOfDay.fromDateTime(lastSent!).format(context)}', style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 12)),
-      ]),
-    );
+  Widget sectionTitle(IconData icon, String title) => Row(children: [
+    Icon(icon, color: const Color(0xFFB94F7D), size: 25),
+    const SizedBox(width: 12),
+    Text(title, style: const TextStyle(color: Color(0xFFB94F7D), fontSize: 17, fontWeight: FontWeight.w800)),
+  ]);
+
+  Widget metricRow(IconData icon, String title, String value, {required Color iconColor}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(children: [
+      SizedBox(width: 48, child: Icon(icon, size: 34, color: iconColor)),
+      const SizedBox(width: 18),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 19, color: Colors.black87, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 5),
+        Text(value, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+      ])),
+    ]),
+  );
+
+  String formatDuration(Duration value) {
+    final hours = value.inHours.toString().padLeft(2, '0');
+    final minutes = (value.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
+    return hours == '00' ? '$minutes:$seconds' : '$hours:$minutes:$seconds';
   }
 
   Widget stopsView(Map<String, dynamic> route) {
