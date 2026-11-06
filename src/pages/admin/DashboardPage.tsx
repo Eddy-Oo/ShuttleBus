@@ -216,7 +216,8 @@ export default function DashboardPage() {
             <thead>
               <tr className="border-b border-slate-50 bg-slate-50/50">
                 <th className="text-left px-5 py-3 font-medium text-slate-500">Vehicle</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500">Status</th>
+                <th className="text-left px-5 py-3 font-medium text-slate-500">Vehicle Status</th>
+                <th className="text-left px-5 py-3 font-medium text-slate-500">Fleet Status</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500">Route</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500">Trip</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500">Tracking</th>
@@ -226,12 +227,17 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {statusRows.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No vehicles</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-slate-400">No vehicles</td></tr>
               ) : statusRows.map(({ vehicle, trip, location, lastSeen, tracking }) => {
                 const route = routeById.get(trip?.routeId || vehicle.assignedRouteId || '');
                 return (
                   <tr key={vehicle.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-5 py-3 font-medium text-slate-900">{vehicle.name}<span className="block text-[10px] font-normal text-slate-400">{vehicle.type}</span></td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        trip ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
+                      }`}>{trip ? 'Active' : 'Inactive'}</span>
+                    </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                         vehicle.status === 'active' ? 'bg-green-50 text-green-700' :
