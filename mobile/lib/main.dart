@@ -279,34 +279,59 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   Future<void> beginRouteSimulation(Map<String, dynamic> route) async {
+    // Prefer the saved GeoJSON route. If it is missing, use the ordered route
+    // stops returned by GET /api/routes (the same fallback used by the web map).
+    final coordinates = <List<double>>[];
     final geometry = route['geometry'];
     final rawCoordinates = geometry is Map ? geometry['coordinates'] : null;
-    if (geometry is! Map || geometry['type'] != 'LineString' || rawCoordinates is! List || rawCoordinates.length < 2) {
-      throw Exception('This route has no LineString map geometry. Add route geometry before browser movement can start.');
+
+    if (geometry is Map && geometry['type'] == 'LineString' && rawCoordinates is List) {
+      for (final item in rawCoordinates) {
+        if (item is! List || item.length < 2 || item[0] is! num || item[1] is! num) {
+          throw Exception('Route geometry contains an invalid coordinate.');
+        }
+        final longitude = (item[0] as num).toDouble();
+        final latitude = (item[1] as num).toDouble();
+        if (!longitude.isFinite || !latitude.isFinite || longitude.abs() > 180 || latitude.abs() > 90) {
+          throw Exception('Route geometry contains an invalid latitude/longitude.');
+        }
+        coordinates.add([longitude, latitude]);
+      }
     }
 
-    final coordinates = <List<double>>[];
-    for (final item in rawCoordinates) {
-      if (item is! List || item.length < 2 || item[0] is! num || item[1] is! num) {
-        throw Exception('Route geometry contains an invalid coordinate.');
+    if (coordinates.length < 2) {
+      final routeStops = route['routeStops'];
+      if (routeStops is List) {
+        for (final entry in routeStops) {
+          if (entry is! Map) continue;
+          final stop = entry['stop'] is Map ? entry['stop'] as Map : entry;
+          final lat = stop['latitude'];
+          final lng = stop['longitude'];
+          if (lat is! num || lng is! num) continue;
+          final latitude = lat.toDouble();
+          final longitude = lng.toDouble();
+          if (latitude.isFinite && longitude.isFinite &&
+              latitude.abs() <= 90 && longitude.abs() <= 180) {
+            coordinates.add([longitude, latitude]);
+          }
+        }
       }
-      final longitude = (item[0] as num).toDouble();
-      final latitude = (item[1] as num).toDouble();
-      if (!longitude.isFinite || !latitude.isFinite || longitude.abs() > 180 || latitude.abs() > 90) {
-        throw Exception('Route geometry contains an invalid latitude/longitude.');
-      }
-      coordinates.add([longitude, latitude]);
     }
 
-    // Close the browser demo path to make the vehicle loop continuously.
+    if (coordinates.length < 2) {
+      throw Exception('This route needs at least two valid stops or a LineString map geometry for browser movement.');
+    }
+
+    // Close the browser demo path so the bus continuously loops around the route.
     final first = coordinates.first;
     final last = coordinates.last;
     if (first[0] != last[0] || first[1] != last[1]) {
       coordinates.add([first[0], first[1]]);
     }
 
+    // Interpolate between stops so the marker moves smoothly, not only stop-to-stop.
     final points = <List<double>>[];
-    const stepsPerSegment = 20;
+    const stepsPerSegment = 30;
     for (var segment = 0; segment < coordinates.length - 1; segment++) {
       final from = coordinates[segment];
       final to = coordinates[segment + 1];
@@ -321,14 +346,15 @@ class _DriverPageState extends State<DriverPage> {
     points.add([first[0], first[1]]);
     if (points.length < 2) throw Exception('Route needs at least two movement points.');
 
+    routeSimulationTimer?.cancel();
     var pointIndex = 0;
     void publishCurrentPoint() {
-      if (!mounted || !tripActive) return;
+      if (!mounted || !tripActive || socket?.connected != true) return;
       final point = points[pointIndex];
       final next = points[(pointIndex + 1) % points.length];
-      final dx = (next[0] - point[0]) * 111320;
+      final dx = (next[0] - point[0]) * 111320 * math.cos(point[1] * math.pi / 180);
       final dy = (next[1] - point[1]) * 111320;
-      final heading = (math.atan2(dy, dx) * 180 / math.pi + 360) % 360;
+      final heading = (math.atan2(dx, dy) * 180 / math.pi + 360) % 360;
       setState(() {
         latestCoordinateLabel = '${point[1].toStringAsFixed(6)}, ${point[0].toStringAsFixed(6)}';
         sharing = true;
@@ -337,10 +363,13 @@ class _DriverPageState extends State<DriverPage> {
       pointIndex = (pointIndex + 1) % points.length;
     }
 
+    // Send immediately, then continue every second while the trip is active.
     publishCurrentPoint();
-    routeSimulationTimer?.cancel();
-    routeSimulationTimer = Timer.periodic(const Duration(seconds: 1), (_) => publishCurrentPoint());
-    inform('Browser demo is moving along ${route['name'] ?? 'the selected route'}; GPS updates are being saved.');
+    routeSimulationTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => publishCurrentPoint(),
+    );
+    inform('Browser route simulation started. Sending a new vehicle location every second.');
   }
 
   void sendGps(Position fix) {
