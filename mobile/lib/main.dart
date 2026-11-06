@@ -576,9 +576,27 @@ class _DriverPageState extends State<DriverPage> {
         Text(fix == null ? 'Coordinates appear after a GPS fix.' : 'Accuracy ±${fix.accuracy.toStringAsFixed(0)} m  ·  Speed ${(fix.speed * 3.6).toStringAsFixed(1)} km/h', style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 12)),
         const SizedBox(height: 14),
         Text(lastSent == null ? 'No GPS update confirmed yet' : 'Last confirmed: ${TimeOfDay.fromDateTime(lastSent!).format(context)}', style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 12)),
+        const SizedBox(height: 18),
+        const Divider(color: Color(0x557FFFFFFF), height: 1),
+        const SizedBox(height: 12),
+        trackingInfoRow(Icons.timer_outlined, 'Time Elapsed', tripActive ? formatDuration(elapsed) : '00:00'),
+        trackingInfoRow(Icons.directions_bus_filled_rounded, 'Station', tripActive ? 'En Route' : 'Waiting'),
+        trackingInfoRow(Icons.speed_rounded, 'Ongoing Speed', '${(latestSpeedKmh ?? (fix == null ? 0 : fix.speed * 3.6)).toStringAsFixed(1)} km/h'),
+        trackingInfoRow(Icons.gps_fixed_rounded, 'Accuracy', (latestAccuracy ?? fix?.accuracy) == null ? '—' : '±${(latestAccuracy ?? fix!.accuracy).toStringAsFixed(0)} m'),
+        trackingInfoRow(Icons.access_time_rounded, 'Last Update', lastSent == null ? '—' : TimeOfDay.fromDateTime(lastSent!).format(context)),
       ]),
     );
   }
+
+  Widget trackingInfoRow(IconData icon, String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(children: [
+      Icon(icon, size: 19, color: const Color(0xFF20B981)),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label, style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 13))),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+    ]),
+  );
 
   Widget sectionTitle(IconData icon, String title) => Row(children: [
     Icon(icon, color: const Color(0xFFB94F7D), size: 25),
