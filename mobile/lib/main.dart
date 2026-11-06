@@ -213,6 +213,9 @@ class _DriverPageState extends State<DriverPage> {
       }
     } catch (e) {
       routeSimulationTimer?.cancel();
+      elapsedTimer?.cancel();
+      elapsedTimer = null;
+      tripStartedAt = null;
       await gpsSubscription?.cancel();
       socket?.dispose();
       socket = null;
@@ -225,7 +228,7 @@ class _DriverPageState extends State<DriverPage> {
           );
         } catch (_) {}
       }
-      if (mounted) setState(() { tripId = null; sharing = false; });
+      if (mounted) setState(() { tripId = null; sharing = false; elapsed = Duration.zero; });
       inform(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => busy = false);
@@ -274,7 +277,7 @@ class _DriverPageState extends State<DriverPage> {
       position = firstFix;
       latestCoordinateLabel = '${firstFix.latitude.toStringAsFixed(6)}, ${firstFix.longitude.toStringAsFixed(6)}';
       latestHeading = firstFix.heading;
-      latestSpeedKmh = firstFix.speed.isFinite ? math.max(0, firstFix.speed * 3.6) : 0;
+      latestSpeedKmh = firstFix.speed.isFinite ? math.max(0, firstFix.speed * 3.6).toDouble() : 0;
       latestAccuracy = firstFix.accuracy;
       sharing = true;
     });
@@ -288,7 +291,7 @@ class _DriverPageState extends State<DriverPage> {
         position = fix;
         latestCoordinateLabel = '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}';
         latestHeading = fix.heading;
-        latestSpeedKmh = fix.speed.isFinite ? math.max(0, fix.speed * 3.6) : 0;
+        latestSpeedKmh = fix.speed.isFinite ? math.max(0, fix.speed * 3.6).toDouble() : 0;
         latestAccuracy = fix.accuracy;
       });
       sendGps(fix);
