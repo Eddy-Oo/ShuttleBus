@@ -1,15 +1,54 @@
-# ShuttleTrack
+# ShuttleTrack — Group A
 
-Campus shuttle bus tracking system for Rangsit University. ShuttleTrack connects a driver mobile app, a real-time tracking backend, a public shuttle map, and an administrator dashboard.
+Campus shuttle bus tracking system for Rangsit University. **Group A's Sprint 2.5 focus is recovery, integration, and staging deployment**: connect the Flutter driver app, backend, database, Public Web, and Admin Dashboard into one working system. This sprint is for completing and stabilizing existing work, not adding major new features.
+
+## Group A — Sprint 2.5 Goal
+
+Our target end-to-end flow is:
+
+```text
+Flutter Driver App (real GPS)
+          |
+          v
+     Backend API
+          |
+          v
+       Neon DB
+          |
+     Socket.IO
+       /     \
+      v       v
+ Public Web  Admin Dashboard
+   live map     live map
+```
+
+By the end of this sprint, another Group A member should be able to clone the repository, configure environment variables, start the project, connect to shared staging services, and continue development without rebuilding the setup manually.
+
+### Group A Priority Checklist
+
+| # | Requirement | What must be demonstrated |
+|---|---|---|
+| 1 | Complete Mobile GPS receiving | Flutter obtains real device coordinates with permission granted. |
+| 2 | Send GPS to Backend | Authenticated mobile app sends coordinates for the correct vehicle and active trip. |
+| 3 | Backend realtime handling | Backend validates, receives, persists, and broadcasts GPS through Socket.IO. |
+| 4 | Public Web integration | Public map receives and displays the live vehicle location. |
+| 5 | Admin Dashboard integration | Admin map/dashboard receives and displays the live vehicle location and trip status. |
+| 6 | Main layout and map visibility | Public and Admin layouts make the map a clear main feature. |
+| 7 | Mobile login/authentication | Vehicle ID and device token login work; JWT is stored securely and validated. |
+| 8 | Full integration test | Demonstrate Mobile → Backend → Socket.IO → Public/Admin, and verify the database record. |
+| 9 | Shared staging deployment | Deploy and verify the connected web, API, and database environment for team/mentor access. |
+| 10 | Recovery and team setup | Test reconnect/recovery and let another member clone, configure, and run the project. |
+
+**Current tracking limitation:** The Flutter implementation is intended for foreground tracking while the app is open and a trip is active. Background GPS tracking is not enabled. Physical-device GPS, end-to-end staging behavior, and clean-clone setup must be tested before they are marked complete.
 
 ## Project Features
 
-- **Public Web:** View active shuttle routes, stops, route lines, and live vehicle locations.
-- **Admin Dashboard:** Manage vehicles, routes, stops, route-stop order, device credentials, and active trips.
+- **Public Web:** Active shuttle routes, stops, route lines, and live vehicle locations.
+- **Admin Dashboard:** Vehicle, route, stop, device credential, and active trip management.
 - **Backend API:** REST API built with Node.js, Express, Prisma, and PostgreSQL/PostGIS.
-- **Real-time tracking:** Socket.IO receives authenticated vehicle GPS updates, stores locations, and broadcasts updates to connected web clients.
+- **Real-time tracking:** Socket.IO receives authenticated vehicle GPS updates, stores locations, and broadcasts updates to web clients.
 - **Driver Mobile App:** Flutter app for vehicle login, assigned route loading, trip start/end, and foreground GPS tracking.
-- **Vehicle Simulator:** Simulate vehicle movement for development and demonstrations without a physical phone.
+- **Vehicle Simulator:** Simulates vehicle movement for development and demonstrations without a physical phone.
 
 ## Technology Stack
 
@@ -20,18 +59,18 @@ Campus shuttle bus tracking system for Rangsit University. ShuttleTrack connects
 | Database | PostgreSQL, PostGIS, Prisma |
 | Real-time communication | Socket.IO |
 | Driver mobile app | Flutter, Dart, Geolocator, flutter_secure_storage |
-| Deployment | Render |
-| Hosted database option | Neon PostgreSQL |
+| Staging deployment | Render (API), Neon PostgreSQL (database); web hosting configured for the team |
+| Local development | Docker Compose, npm |
 
-## Sprint Overview
+## Sprint History
 
 ### Sprint 1 — Foundation and Core System
 
-- Repository setup and development environment
+- Repository and development environment setup
 - Vehicle, Route, Stop, and RouteStop database models
 - Database migrations and seed data
 - Validated CRUD APIs
-- Admin management pages connected to the backend
+- Admin management pages connected to backend
 - Public routes, stops, and map display
 
 ### Sprint 2 — Real-time Tracking
@@ -41,37 +80,24 @@ Campus shuttle bus tracking system for Rangsit University. ShuttleTrack connects
 - Start-trip and end-trip APIs
 - Authenticated Socket.IO GPS updates
 - Vehicle location persistence
-- Live vehicle markers on the Public Web and Admin Dashboard
+- Live vehicle markers on Public Web and Admin Dashboard
 - Route geometry and vehicle simulator
 
-### Sprint 2.5 — Recovery, Integration, and Deployment
+### Sprint 2.5 — Recovery, Integration, and Deployment Foundation
 
-The integration phase connects the Flutter driver app with the deployed backend, database, Public Web, and Admin Dashboard. The app implementation includes vehicle login, secure JWT storage, route loading, trip controls, and foreground GPS publishing.
+Group A is prioritizing the mobile-to-web GPS flow, the visibility of maps in Public and Admin, mobile authentication, full-stack verification, and shared staging deployment. Do not treat a feature as complete just because code exists; demonstrate it working across the connected services.
 
-**Sprint 2.5 acceptance checks still require end-to-end verification on the target devices and deployment environment:**
-
-- Confirm Android/iOS location permissions and run on a physical phone.
-- Start a trip and confirm real device coordinates are sent with the correct vehicle and trip IDs.
-- Confirm the location is saved in PostgreSQL/Neon.
-- Confirm the Public Web map and Admin Dashboard show the phone's live location.
-- Test network interruption, Socket.IO reconnection, and recovery.
-- Verify the deployed API, web app, and database work together.
-- Clone the repository on a clean machine and follow the setup instructions successfully.
-
-**Tracking limitation:** The current mobile app is designed for foreground tracking while the app is open and a trip is active. Background GPS tracking is not enabled.
-
-See [docs/SPRINTS.md](docs/SPRINTS.md), [docs/TESTING.md](docs/TESTING.md), and [mobile/README.md](mobile/README.md) for implementation details and test instructions.
-
-## Getting Started — Web and Backend
+## Getting Started — Local Development
 
 ### Requirements
 
 - Node.js 22 or 24
 - npm
-- Docker Desktop (only if using the local PostgreSQL/PostGIS database)
 - Git
+- Docker Desktop (for local PostgreSQL/PostGIS)
+- Flutter SDK (for the driver app)
 
-The repository uses npm workspaces and `package-lock.json`. Use npm rather than pnpm or yarn.
+This repository uses npm workspaces and `package-lock.json`. Use npm rather than pnpm or yarn.
 
 ### 1. Clone and install
 
@@ -85,16 +111,16 @@ npm install
 
 Choose **one** database option.
 
-**Option A — Local PostgreSQL/PostGIS with Docker**
+**Option A — Local PostgreSQL/PostGIS with Docker Compose**
 
 ```bash
-npm run db:up
 cp backend/.env.example backend/.env
+npm run db:up
 ```
 
-**Option B — Neon PostgreSQL**
+**Option B — Shared Neon PostgreSQL**
 
-Create a Neon project and configure the pooled connection string as `DATABASE_URL` and the direct connection string as `DIRECT_URL` in `backend/.env`. Do not run `npm run db:up` when using Neon. Follow [docs/NEON.md](docs/NEON.md).
+Create or use the team's Neon project. Set the pooled connection string as `DATABASE_URL` and the direct connection string as `DIRECT_URL` in `backend/.env`. Do not run `npm run db:up` when using Neon. Follow [docs/NEON.md](docs/NEON.md).
 
 For either option, edit `backend/.env` and set the required secrets, including a strong `JWT_SECRET` (32+ characters) and `ADMIN_PASSWORD` (12+ characters). Then run:
 
@@ -104,7 +130,9 @@ npm run db:deploy
 npm run db:seed
 ```
 
-### 3. Start the backend and website
+Do not commit `.env` files or real credentials to GitHub.
+
+### 3. Start Backend and Web
 
 Open two terminal windows from the repository root.
 
@@ -114,34 +142,36 @@ Open two terminal windows from the repository root.
 npm run dev:api
 ```
 
-The API runs at `http://localhost:3000`.
+The local API runs at `http://localhost:3000`.
 
 **Terminal 2 — Public Web and Admin Dashboard**
+
+Create the root environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Set the following values in the root `.env` file:
+Set these values in the root `.env`:
 
 ```env
 VITE_API_URL=http://localhost:3000
 VITE_SOCKET_URL=http://localhost:3000
 ```
 
-Then start the website:
+Then start the web app:
 
 ```bash
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. Sign in at `/login` using the `ADMIN_USERNAME` and `ADMIN_PASSWORD` configured in `backend/.env`.
+Open `http://127.0.0.1:5173`. Sign in at `/login` with the `ADMIN_USERNAME` and `ADMIN_PASSWORD` configured in `backend/.env`.
 
-> **Important:** If `VITE_API_URL` is not configured, the web app may use its in-memory mock API. Use the real backend URLs above for an integrated sprint demonstration.
+> **Important:** If `VITE_API_URL` is not configured, the web app may use its in-memory mock API. Use the real backend URLs for Group A's integration test.
 
 ## Getting Started — Flutter Driver App
 
-The Flutter project is inside the `mobile/` directory. Install Flutter first, then run:
+The Flutter app is in `mobile/`. Install the Flutter SDK, then run:
 
 ```bash
 cd mobile
@@ -149,13 +179,13 @@ flutter pub get
 flutter analyze
 ```
 
-If the Android and iOS platform folders have not been generated yet, create them with:
+If platform folders do not exist yet, generate them:
 
 ```bash
 flutter create --platforms=android,ios .
 ```
 
-Configure the API and Socket.IO addresses for the device you are using:
+Configure API and Socket.IO addresses for the target device:
 
 | Target | API URL |
 |---|---|
@@ -163,38 +193,99 @@ Configure the API and Socket.IO addresses for the device you are using:
 | iOS simulator | `http://127.0.0.1:3000` |
 | Physical phone | `http://YOUR_COMPUTER_LAN_IP:3000` |
 
-For example, on an Android emulator:
+Example for Android emulator:
 
 ```bash
 flutter run --dart-define=API_URL=http://10.0.2.2:3000 --dart-define=SOCKET_URL=http://10.0.2.2:3000
 ```
 
-For a physical phone, replace the example address with your computer's LAN IP and connect both devices to the same Wi-Fi network. Configure the required Android/iOS location permissions as described in [mobile/README.md](mobile/README.md).
+For a physical phone, use your computer's LAN IP and connect both devices to the same Wi-Fi network. Configure Android/iOS location permissions as described in [mobile/README.md](mobile/README.md).
 
-In the Admin Dashboard, open **Vehicles** and generate a device token for the vehicle. Copy the raw token when it is displayed; it is shown only once. Use the vehicle ID and device token to sign in to the Flutter app.
+In the Admin Dashboard, open **Vehicles** and generate a device token for the selected vehicle. Copy the raw token when shown; it is displayed only once. Sign in to the Flutter app using that vehicle ID and device token.
 
-## Realtime Simulator Demo
+## Group A — End-to-End Integration Test
 
-The simulator can demonstrate Sprint 2 without a physical phone:
+Use a physical phone for the real GPS test. A browser or simulator-based location demo does not prove physical-device GPS works.
+
+1. Start the backend and confirm its health endpoint responds.
+2. Confirm the backend is connected to the intended local or staging PostgreSQL database.
+3. Sign in to the Flutter app using a valid vehicle ID and device token.
+4. Grant location permission and start a trip outdoors or where the phone can obtain a GPS fix.
+5. Confirm the app sends coordinates with the correct vehicle ID, active trip ID, and timestamp.
+6. Confirm the backend accepts the Socket.IO event and acknowledges it.
+7. Confirm the new location is persisted in the database.
+8. Confirm the Public Web map updates the vehicle marker.
+9. Confirm the Admin Dashboard map and vehicle/trip status update.
+10. Temporarily interrupt network access, restore it, and verify the app reconnects and resumes updates.
+11. Repeat using another team member's clean clone and setup instructions.
+12. Repeat the integration flow against the shared staging environment.
+
+Example SQL to inspect recent location records (use the actual database connection configured for the test):
+
+```sql
+SELECT
+  "vehicleId",
+  "tripId",
+  "latitude",
+  "longitude",
+  "recordedAt"
+FROM "VehicleLocation"
+ORDER BY "recordedAt" DESC
+LIMIT 10;
+```
+
+## Realtime Simulator
+
+The simulator is useful for checking backend broadcasting and the two web maps before physical-phone testing:
 
 ```bash
 cp simulator/.env.example simulator/.env
 ```
 
-Configure the simulator environment values, including the vehicle ID and admin credentials, then run:
+Configure the vehicle ID and admin credentials in `simulator/.env`, then run:
 
 ```bash
 npm run simulate
 ```
 
-Open the Public Web map and `/admin/dashboard` to observe the simulated vehicle. See [docs/SIMULATOR.md](docs/SIMULATOR.md) for the complete instructions.
+Open the Public Web map and `/admin/dashboard` to observe the simulated vehicle. See [docs/SIMULATOR.md](docs/SIMULATOR.md).
+
+## Shared Staging and CI/CD
+
+Group A needs one shared staging environment accessible to team members and mentors. The intended service layout is:
+
+```text
+Public Web ──┐
+Admin Web  ──┼──> Staging Backend (Render) ──> Neon PostgreSQL
+Flutter    ──┘             |
+                         Socket.IO
+```
+
+Use the team's agreed web hosting provider for the Public Web and Admin Dashboard. The repository includes a Render Blueprint in `render.yaml`; follow [docs/RENDER.md](docs/RENDER.md) and confirm the actual deployed service URLs and environment variables with the team.
+
+Basic CI/CD workflow:
+
+```text
+Commit / Pull Request
+        ↓
+Review and automated checks
+        ↓
+Merge to shared branch
+        ↓
+Deploy to staging
+        ↓
+Verify API, database, web, and mobile integration
+```
+
+At minimum, verify that the web and backend builds and automated tests pass before merging. Do not commit secrets; configure staging secrets in the hosting provider's environment settings. A successful build or deployment alone does not prove the complete GPS integration works.
 
 ## Useful Commands
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Start the Public Web and Admin Dashboard |
-| `npm run dev:api` | Start the backend API and Socket.IO |
+| `npm install` | Install web/backend dependencies |
+| `npm run dev` | Start Public Web and Admin Dashboard |
+| `npm run dev:api` | Start backend API and Socket.IO |
 | `npm run build` / `npm run build:api` | Build web / backend |
 | `npm run typecheck` | Type-check the web application |
 | `npm test` | Run web and backend unit/adapter tests |
@@ -205,26 +296,32 @@ Open the Public Web map and `/admin/dashboard` to observe the simulated vehicle.
 | `npm run db:deploy` | Apply database migrations |
 | `npm run db:seed` | Seed development data |
 | `npm run simulate` | Start the vehicle simulator |
+| `cd mobile && flutter pub get` | Install Flutter dependencies |
 | `cd mobile && flutter analyze` | Analyze Flutter source code |
-| `cd mobile && flutter run` | Run the driver app (configure API URLs as above) |
+| `cd mobile && flutter run` | Run the driver app with configured API URLs |
 
-## Deployment
+## Definition of Done — Group A
 
-The repository includes a Render Blueprint in `render.yaml` for the API, database, and static website. Follow [docs/RENDER.md](docs/RENDER.md) to configure and deploy the services. Configure production environment variables and verify the deployed API, database, web app, and mobile app together before treating the end-to-end deployment as complete.
+Sprint 2.5 is complete when:
 
-## Project Structure
+- [ ] A team member can clone, configure, and run the local project.
+- [ ] Docker Compose can start the local database, and the backend connects to it.
+- [ ] Public Web and Admin Dashboard use the real backend, not mock data.
+- [ ] Flutter vehicle login and authentication work.
+- [ ] A physical phone sends real GPS coordinates to the backend.
+- [ ] Backend persists and broadcasts GPS updates through Socket.IO.
+- [ ] Public Web and Admin Dashboard both display the live vehicle location.
+- [ ] The map is a clear main feature in both web interfaces.
+- [ ] Network interruption and reconnection are tested.
+- [ ] Shared staging services are deployed and accessible to the team/mentors.
+- [ ] Basic automated checks/builds run through the team's agreed CI workflow.
+- [ ] A second team member successfully repeats the setup and integration test.
 
-```text
-ShuttleBus/
-├── backend/       # Express API, Prisma schema, migrations, seed
-├── mobile/        # Flutter driver GPS application
-├── simulator/    # Vehicle location simulator
-├── src/           # React Public Web and Admin Dashboard
-├── docs/          # Sprint, setup, testing, Socket.IO and deployment docs
-├── render.yaml    # Render deployment blueprint
-├── compose.yaml   # Local database services
-└── README.md
-```
+## Not in Sprint 2.5 Scope
+
+Do not spend this sprint on major new features such as LoRaWAN, ESP32/IoT modules, advanced ETA, large new modules, or production release. Focus on:
+
+**Fix → Integrate → Standardize → Deploy → Continue**
 
 ## Documentation
 
