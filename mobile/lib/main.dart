@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -49,6 +51,8 @@ class _DriverPageState extends State<DriverPage> {
   Position? position;
   DateTime? lastSent;
   StreamSubscription<Position>? gpsSubscription;
+  Timer? routeSimulationTimer;
+  String? latestCoordinateLabel;
   io.Socket? socket;
   bool busy = false, sharing = false, hideToken = true;
 
@@ -85,6 +89,7 @@ class _DriverPageState extends State<DriverPage> {
   @override
   void dispose() {
     gpsSubscription?.cancel();
+    routeSimulationTimer?.cancel();
     socket?.dispose();
     vehicleIdInput.dispose();
     deviceTokenInput.dispose();
@@ -158,57 +163,208 @@ class _DriverPageState extends State<DriverPage> {
 
   Future<void> startTrip() async {
     if (token == null || selectedRouteId == null) { inform('Choose a route first.'); return; }
+    final selectedRoute = routes.firstWhere(
+      (route) => route['id']?.toString() == selectedRouteId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (selectedRoute.isEmpty) { inform('Selected route could not be loaded.'); return; }
+
     setState(() { busy = true; message = null; });
+    String? createdTripId;
     try {
-      if (!await requestLocationPermission()) return;
+      // Real phones publish their actual GPS. Flutter Web uses route geometry
+      // as a demo GPS source so the map can move during browser testing.
+      if (!kIsWeb && !await requestLocationPermission()) return;
+
       final response = await http.post(
         Uri.parse('$apiUrl/api/trips/start'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
         body: jsonEncode({'routeId': selectedRouteId}),
       );
       final data = unwrap(response);
-      final newTripId = data['id']?.toString();
-      if (newTripId == null || newTripId.isEmpty) throw Exception('Backend did not return a trip ID.');
-      tripId = newTripId;
-      connectSocket();
-      if (mounted) setState(() => message = 'Trip started. Waiting for GPS...');
-      await beginGps();
-    } catch (e) { inform(e.toString().replaceFirst('Exception: ', '')); }
-    finally { if (mounted) setState(() => busy = false); }
+      createdTripId = data['id']?.toString();
+      if (createdTripId == null || createdTripId.isEmpty) {
+        throw Exception('Backend did not return a trip ID.');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        tripId = createdTripId;
+        message = 'Trip created. Connecting to live tracking...';
+      });
+
+      await connectSocket();
+      if (kIsWeb) {
+        await beginRouteSimulation(selectedRoute);
+      } else {
+        await beginGps();
+      }
+    } catch (e) {
+      routeSimulationTimer?.cancel();
+      await gpsSubscription?.cancel();
+      socket?.dispose();
+      socket = null;
+      // Roll back the newly created active trip if live tracking failed.
+      if (createdTripId != null && token != null) {
+        try {
+          await http.post(
+            Uri.parse('$apiUrl/api/trips/$createdTripId/end'),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+        } catch (_) {}
+      }
+      if (mounted) setState(() { tripId = null; sharing = false; });
+      inform(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
-  void connectSocket() {
+  Future<void> connectSocket() async {
     socket?.dispose();
-    socket = io.io(socketUrl, io.OptionBuilder().setTransports(['websocket']).setAuth({'token': token}).disableAutoConnect().build());
-    socket!.onConnect((_) => inform('Live connection ready.'));
-    socket!.onConnectError((error) => inform('Live connection failed: $error'));
-    socket!.onDisconnect((_) { if (mounted && tripActive) inform('Live connection lost. Reconnecting...'); });
+    final connected = Completer<void>();
+    socket = io.io(
+      socketUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket'])
+          .setAuth({'token': token})
+          .disableAutoConnect()
+          .build(),
+    );
+    socket!.onConnect((_) {
+      if (!connected.isCompleted) connected.complete();
+      inform('Live connection ready.');
+    });
+    socket!.onConnectError((error) {
+      if (!connected.isCompleted) {
+        connected.completeError(Exception('Live connection failed: $error'));
+      } else {
+        inform('Live connection failed: $error');
+      }
+    });
+    socket!.onDisconnect((_) {
+      if (mounted && tripActive) inform('Live connection lost.');
+    });
     socket!.connect();
+    await connected.future.timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => throw Exception('Timed out connecting to the live tracking server.'),
+    );
   }
 
   Future<void> beginGps() async {
     await gpsSubscription?.cancel();
+    final firstFix = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+    );
+    if (!mounted || !tripActive) return;
+    setState(() {
+      position = firstFix;
+      latestCoordinateLabel = '${firstFix.latitude.toStringAsFixed(6)}, ${firstFix.longitude.toStringAsFixed(6)}';
+      sharing = true;
+    });
+    sendGps(firstFix);
+
     gpsSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 3),
     ).listen((fix) {
       if (!mounted || !tripActive) return;
-      setState(() => position = fix);
+      setState(() {
+        position = fix;
+        latestCoordinateLabel = '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}';
+      });
       sendGps(fix);
     }, onError: (Object error) => inform('GPS error: $error'));
-    if (mounted) setState(() => sharing = true);
+    inform('Trip active. Live phone GPS is being shared.');
+  }
+
+  Future<void> beginRouteSimulation(Map<String, dynamic> route) async {
+    final geometry = route['geometry'];
+    final rawCoordinates = geometry is Map ? geometry['coordinates'] : null;
+    if (geometry is! Map || geometry['type'] != 'LineString' || rawCoordinates is! List || rawCoordinates.length < 2) {
+      throw Exception('This route has no LineString map geometry. Add route geometry before browser movement can start.');
+    }
+
+    final coordinates = <List<double>>[];
+    for (final item in rawCoordinates) {
+      if (item is! List || item.length < 2 || item[0] is! num || item[1] is! num) {
+        throw Exception('Route geometry contains an invalid coordinate.');
+      }
+      final longitude = (item[0] as num).toDouble();
+      final latitude = (item[1] as num).toDouble();
+      if (!longitude.isFinite || !latitude.isFinite || longitude.abs() > 180 || latitude.abs() > 90) {
+        throw Exception('Route geometry contains an invalid latitude/longitude.');
+      }
+      coordinates.add([longitude, latitude]);
+    }
+
+    // Close the browser demo path to make the vehicle loop continuously.
+    final first = coordinates.first;
+    final last = coordinates.last;
+    if (first[0] != last[0] || first[1] != last[1]) {
+      coordinates.add([first[0], first[1]]);
+    }
+
+    final points = <List<double>>[];
+    const stepsPerSegment = 20;
+    for (var segment = 0; segment < coordinates.length - 1; segment++) {
+      final from = coordinates[segment];
+      final to = coordinates[segment + 1];
+      for (var step = 0; step < stepsPerSegment; step++) {
+        final t = step / stepsPerSegment;
+        points.add([
+          from[0] + (to[0] - from[0]) * t,
+          from[1] + (to[1] - from[1]) * t,
+        ]);
+      }
+    }
+    points.add([first[0], first[1]]);
+    if (points.length < 2) throw Exception('Route needs at least two movement points.');
+
+    var pointIndex = 0;
+    void publishCurrentPoint() {
+      if (!mounted || !tripActive) return;
+      final point = points[pointIndex];
+      final next = points[(pointIndex + 1) % points.length];
+      final dx = (next[0] - point[0]) * 111320;
+      final dy = (next[1] - point[1]) * 111320;
+      final heading = (math.atan2(dy, dx) * 180 / math.pi + 360) % 360;
+      setState(() {
+        latestCoordinateLabel = '${point[1].toStringAsFixed(6)}, ${point[0].toStringAsFixed(6)}';
+        sharing = true;
+      });
+      sendCoordinates(point[1], point[0], speed: 5.0, heading: heading);
+      pointIndex = (pointIndex + 1) % points.length;
+    }
+
+    publishCurrentPoint();
+    routeSimulationTimer?.cancel();
+    routeSimulationTimer = Timer.periodic(const Duration(seconds: 1), (_) => publishCurrentPoint());
+    inform('Browser demo is moving along ${route['name'] ?? 'the selected route'}; GPS updates are being saved.');
   }
 
   void sendGps(Position fix) {
+    sendCoordinates(
+      fix.latitude,
+      fix.longitude,
+      speed: fix.speed.isFinite && fix.speed > 0 ? fix.speed : 0,
+      heading: fix.heading.isFinite ? fix.heading : 0,
+    );
+  }
+
+  void sendCoordinates(double latitude, double longitude, {double speed = 0, double heading = 0}) {
     final activeSocket = socket;
     if (activeSocket == null || !activeSocket.connected || vehicleId == null || tripId == null) {
       inform('Waiting for live connection before sending GPS.');
       return;
     }
     final payload = {
-      'vehicleId': vehicleId, 'tripId': tripId,
-      'latitude': fix.latitude, 'longitude': fix.longitude,
-      'speed': fix.speed.isFinite && fix.speed > 0 ? fix.speed : 0,
-      'heading': fix.heading.isFinite ? fix.heading : 0,
+      'vehicleId': vehicleId,
+      'tripId': tripId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'speed': speed.isFinite && speed >= 0 ? speed : 0,
+      'heading': heading.isFinite ? heading % 360 : 0,
       'recordedAt': DateTime.now().toUtc().toIso8601String(),
     };
     activeSocket.emitWithAck('vehicle:location:update', payload, ack: (dynamic result) {
@@ -232,6 +388,8 @@ class _DriverPageState extends State<DriverPage> {
       unwrap(response);
       await gpsSubscription?.cancel();
       gpsSubscription = null;
+      routeSimulationTimer?.cancel();
+      routeSimulationTimer = null;
       socket?.dispose();
       socket = null;
       if (!mounted) return;
@@ -243,11 +401,12 @@ class _DriverPageState extends State<DriverPage> {
   Future<void> logout() async {
     if (tripActive) { inform('End the active trip before signing out.'); return; }
     await gpsSubscription?.cancel();
+    routeSimulationTimer?.cancel();
     socket?.dispose();
     if (!mounted) return;
     setState(() {
       token = null; vehicleId = null; vehicleName = null; routes = [];
-      selectedRouteId = null; position = null; lastSent = null; sharing = false;
+      selectedRouteId = null; position = null; lastSent = null; latestCoordinateLabel = null; sharing = false;
       message = 'Signed out.';
     });
     deviceTokenInput.clear();
@@ -351,7 +510,7 @@ class _DriverPageState extends State<DriverPage> {
           Container(width: 8, height: 8, decoration: BoxDecoration(color: sharing ? const Color(0xFF20B981) : Colors.orangeAccent, shape: BoxShape.circle)),
         ]),
         const SizedBox(height: 18),
-        Text(fix == null ? 'Waiting for GPS' : '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(latestCoordinateLabel ?? (fix == null ? 'Waiting for GPS' : '${fix.latitude.toStringAsFixed(6)}, ${fix.longitude.toStringAsFixed(6)}'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 7),
         Text(fix == null ? 'Coordinates appear after a GPS fix.' : 'Accuracy ±${fix.accuracy.toStringAsFixed(0)} m  ·  Speed ${(fix.speed * 3.6).toStringAsFixed(1)} km/h', style: const TextStyle(color: Color(0xFFD2DCE6), fontSize: 12)),
         const SizedBox(height: 14),
