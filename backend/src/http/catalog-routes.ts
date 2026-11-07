@@ -156,8 +156,35 @@ catalogRouter.patch('/routes/:id', authenticate, requireAdmin, async (req, res) 
 });
 
 catalogRouter.delete('/routes/:id', authenticate, requireAdmin, async (req, res) => {
-  await prisma.route.delete({ where: { id: pathId(req.params.id) } });
-  return sendSuccess(res, null, 200, 'Route deleted');
+  const routeId = pathId(req.params.id);
+  const result = await prisma.$transaction(async tx => {
+    const route = await tx.route.findUnique({ where: { id: routeId }, select: { id: true, status: true } });
+    if (!route) throw new ApiError(404, 'Route not found', 'NOT_FOUND');
+
+    // Trips are historical records. Archive routes that have ever been used instead of
+    // deleting them; routes with no trip history can be safely removed.
+    const tripCount = await tx.trip.count({ where: { routeId } });
+    if (tripCount > 0) {
+      const archived = await tx.route.update({
+        where: { id: routeId },
+        data: { status: 'inactive' },
+        select: { id: true, name: true, status: true },
+      });
+      return { archived: true, route: archived, tripCount };
+    }
+
+    await tx.route.delete({ where: { id: routeId } });
+    return { archived: false, route: null, tripCount: 0 };
+  });
+
+  return sendSuccess(
+    res,
+    result,
+    200,
+    result.archived
+      ? `Route archived because it has ${result.tripCount} trip record(s). Trip history was preserved.`
+      : 'Route deleted',
+  );
 });
 
 catalogRouter.get('/stops', optionalAuthenticate, async (req, res) => {
