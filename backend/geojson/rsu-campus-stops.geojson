@@ -1,0 +1,187 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-1",
+        "nameTh": "อาคารอาทิตย์ อุไรรัตน์",
+        "nameEn": "Arthit Ourairat Building (Building 1)",
+        "stopOrder": 1
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5875352, 13.964759]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-2",
+        "nameTh": "-",
+        "nameEn": "Business Building",
+        "stopOrder": 2
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5875458, 13.9642405]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-3",
+        "nameTh": "อาคารคุณหญิงพัฒนา",
+        "nameEn": "Canteen Building",
+        "stopOrder": 3
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5867987, 13.9639523]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-4",
+        "nameTh": "อาคาร ",
+        "nameEn": "Biomedical Science Building",
+        "stopOrder": 4
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5862621, 13.9638048]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-5",
+        "nameTh": "อาคารบริการ",
+        "nameEn": "Engineering Building",
+        "stopOrder": 5
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5860456, 13.9646237]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-6",
+        "nameTh": "อาคารสถาปัตยกรรม",
+        "nameEn": "Student Dorm ",
+        "stopOrder": 6
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5856216, 13.9662508]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-7",
+        "nameTh": "อาคารรังสิตประยูรศักดิ์",
+        "nameEn": "Dental Building",
+        "stopOrder": 7
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5853721, 13.9673294]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-8",
+        "nameTh": "อาคารนันทนาการ",
+        "nameEn": "Com Arts",
+        "stopOrder": 8
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5850786, 13.9678127]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-9",
+        "nameTh": "-",
+        "nameEn": "Music Building",
+        "stopOrder": 9
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.583552, 13.9668975]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-10",
+        "nameTh": "-",
+        "nameEn": "Architecture Building",
+        "stopOrder": 10
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5839184, 13.9687264]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-11",
+        "nameTh": "-",
+        "nameEn": "Multimedia Complex",
+        "stopOrder": 11
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5856104, 13.96783]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-12",
+        "nameTh": "-",
+        "nameEn": "Sports Complex",
+        "stopOrder": 12
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5872164, 13.9681472]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-13",
+        "nameTh": "-",
+        "nameEn": "International Building",
+        "stopOrder": 13
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5868418, 13.9664425]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rsu-stop-14",
+        "nameTh": "-",
+        "nameEn": "Exit Gate",
+        "stopOrder": 14
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [100.5872706, 13.9658119]
+      }
+    }
+  ]
+}
