@@ -5,21 +5,25 @@ import { PrismaClient, type Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const stops = [
-  { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.9645, longitude: 100.5858 },
-  { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building', latitude: 13.9650, longitude: 100.5865 },
-  { id: 'rsu-stop-3', nameTh: 'วิทยาลัยนานาชาติ', nameEn: 'Rangsit University International College', latitude: 13.9637, longitude: 100.5875 },
-  { id: 'rsu-stop-4', nameTh: 'หอสมุด', nameEn: 'University Library', latitude: 13.9641, longitude: 100.5870 },
-  { id: 'rsu-stop-5', nameTh: 'ศูนย์กิจกรรมนักศึกษา', nameEn: 'Student Center', latitude: 13.9633, longitude: 100.5864 },
-  { id: 'rsu-stop-6', nameTh: 'โรงอาหาร', nameEn: 'University Canteen', latitude: 13.9638, longitude: 100.5859 },
-  { id: 'rsu-stop-7', nameTh: 'โรงยิม', nameEn: 'Gymnasium', latitude: 13.9628, longitude: 100.5872 },
+  // Approximate campus-side stop coordinates, centered on the published RSU campus location.
+  // Confirm exact curbside boarding points on site before using for live navigation.
+  { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.964355, longitude: 100.586705 },
+  { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building (Building 1)', latitude: 13.96472, longitude: 100.58648 },
+  { id: 'rsu-stop-3', nameTh: 'ศูนย์นักศึกษา', nameEn: 'Student Center (Building 6)', latitude: 13.96405, longitude: 100.58612 },
+  { id: 'rsu-stop-4', nameTh: 'หอสมุด', nameEn: 'University Library (Building 7)', latitude: 13.96428, longitude: 100.58698 },
+  { id: 'rsu-stop-5', nameTh: 'วิทยาลัยนานาชาติ', nameEn: 'International College (Building 12)', latitude: 13.96372, longitude: 100.58712 },
+  { id: 'rsu-stop-6', nameTh: 'อาคารนันทนาการ', nameEn: 'Recreation Building (Building 14)', latitude: 13.96352, longitude: 100.58638 },
+  { id: 'rsu-stop-7', nameTh: 'อาคารวิษณุรัตน์', nameEn: 'Wisanu-rat Building (Building 5)', latitude: 13.96482, longitude: 100.58725 },
 ];
 
 const routes = [
-  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-3', 'rsu-stop-4', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-7'], closeLoop: true },
+  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-7', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-3', 'rsu-stop-4'], closeLoop: true },
 ];
 
 const vehicles = [
   { id: 'rsu-shuttle-01', name: 'RSU Shuttle Bus 01', type: 'bus', assignedRouteId: 'rsu-campus-loop', status: 'active' as const },
+  { id: 'rsu-shuttle-02', name: 'RSU Shuttle Bus 02', type: 'bus', assignedRouteId: 'rsu-campus-loop', status: 'active' as const },
+  { id: 'rsu-shuttle-03', name: 'RSU Shuttle Bus 03', type: 'bus', assignedRouteId: 'rsu-campus-loop', status: 'active' as const },
 ];
 
 async function main() {
@@ -45,7 +49,7 @@ async function main() {
     await prisma.stop.upsert({
       where: { id: stop.id },
       create: { ...stop, status: 'active' },
-      update: {},
+      update: { nameTh: stop.nameTh, nameEn: stop.nameEn, latitude: stop.latitude, longitude: stop.longitude, status: 'active' },
     });
   }
 
@@ -63,7 +67,7 @@ async function main() {
     await prisma.route.upsert({
       where: { id: route.id },
       create: { id: route.id, name: route.name, color: route.color, status: 'active', geometry },
-      update: {},
+      update: { name: route.name, color: route.color, status: 'active', geometry },
     });
 
     // Temporarily move existing stop orders below the current range so that
@@ -118,7 +122,7 @@ async function main() {
     await prisma.vehicle.upsert({
       where: { id: vehicle.id },
       create: vehicle,
-      update: {},
+      update: { name: vehicle.name, type: vehicle.type, assignedRouteId: vehicle.assignedRouteId, status: vehicle.status },
     });
   }
 
