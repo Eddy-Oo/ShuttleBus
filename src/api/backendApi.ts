@@ -85,7 +85,7 @@ export const backendApi = {
     getById: (id: string) => request<Route>(`/routes/${encodeURIComponent(id)}`),
     create: (data: Omit<Route, 'id' | 'createdAt'>) => request<Route>('/routes', 'POST', data),
     update: (id: string, data: Partial<Route>) => request<Route>(`/routes/${encodeURIComponent(id)}`, 'PATCH', data),
-    delete: (id: string) => request<{ archived: boolean; route: Route | null; tripCount: number }>(`/routes/${encodeURIComponent(id)}`, 'DELETE'),
+    delete: (id: string) => request<{ deletedTrips: number }>(`/routes/${encodeURIComponent(id)}`, 'DELETE'),
   },
 
   vehicleApi: {
