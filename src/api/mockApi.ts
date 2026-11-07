@@ -52,17 +52,12 @@ export const routeApi = {
     routes[idx] = { ...routes[idx], ...data };
     return { success: true, data: { ...routes[idx] }, message: 'Route updated' };
   },
-  async delete(id: string): Promise<ApiResponse<{ archived: boolean; route: Route | null; tripCount: number }>> {
+  async delete(id: string): Promise<ApiResponse<{ deletedTrips: number }>> {
     await delay(300);
     const idx = routes.findIndex(x => x.id === id);
     if (idx === -1) return { success: false, error: 'Route not found' };
     routes.splice(idx, 1);
-    routeStops = routeStops.filter(rs => rs.routeId !== id);
-    return {
-      success: true,
-      data: { archived: false, route: null, tripCount: 0 },
-      message: 'Route deleted',
-    };
+    return { success: true, data: { deletedTrips: 0 }, message: 'Route permanently deleted' };
   },
 };
 
