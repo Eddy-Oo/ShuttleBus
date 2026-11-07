@@ -105,10 +105,25 @@ export default function RoutesPage() {
     else { setFormError(res.error || 'Error'); }
   };
 
+  const flash = (text: string, error = false) => {
+    setMsg({ text, error });
+    setTimeout(() => setMsg(null), error ? 5000 : 3500);
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this route? Stops on this route will also be removed.')) return;
+    const route = routes.find(item => item.id === id);
+    if (!confirm(`PERMANENTLY DELETE route "${route?.name || id}"? This cannot be undone. Any linked trip history will also be deleted. GPS location records will be retained without their trip links. Continue?`)) return;
+
+    const result = await remove(id);
+    if (!result.success) {
+      flash(result.error || 'Could not remove route', true);
+      return;
+    }
+
     if (selectedRouteId === id) setSelectedRouteId(null);
-    await remove(id);
+    flash(result.deletedTrips
+      ? `Route permanently deleted. ${result.deletedTrips} linked trip record(s) were also deleted; GPS points were retained.`
+      : 'Route permanently deleted successfully.');
   };
 
   /** Build a LineString from the route's ordered stops (a straight-line path, not road routing). */
@@ -121,11 +136,6 @@ export default function RoutesPage() {
     if (coords.length < 2) { setFormError('Add at least 2 stops to this route before generating a path'); return; }
     setFormError('');
     setGeometryText(JSON.stringify({ type: 'LineString', coordinates: coords }, null, 2));
-  };
-
-  const flash = (text: string, error = false) => {
-    setMsg({ text, error });
-    setTimeout(() => setMsg(null), error ? 4000 : 2000);
   };
 
   // RouteStop handlers
@@ -177,6 +187,12 @@ export default function RoutesPage() {
           <Plus className="w-4 h-4" /> Add Route
         </button>
       </div>
+
+      {msg && (
+        <div role="status" aria-live="polite" className={`text-sm rounded-xl px-4 py-3 ${msg.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+          {msg.text}
+        </div>
+      )}
 
       {/* Route table */}
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
@@ -236,12 +252,6 @@ export default function RoutesPage() {
       {/* RouteStop Management — shown when a route is selected */}
       {selectedRouteId && selectedRoute && (
         <div className="space-y-4">
-          {msg && (
-            <div role="status" className={`text-sm rounded-xl px-4 py-2 ${msg.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-              {msg.text}
-            </div>
-          )}
-
           {/* Add stop form */}
           <div className="bg-white rounded-2xl border border-slate-100 p-5">
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">

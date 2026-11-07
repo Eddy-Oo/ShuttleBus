@@ -45,7 +45,7 @@ interface RouteState {
   fetchActive: () => Promise<void>;
   create: (data: Omit<Route, 'id' | 'createdAt'>) => Promise<{ success: boolean; error?: string }>;
   update: (id: string, data: Partial<Route>) => Promise<{ success: boolean; error?: string }>;
-  remove: (id: string) => Promise<{ success: boolean; error?: string }>;
+  remove: (id: string) => Promise<{ success: boolean; error?: string; deletedTrips?: number }>;
 }
 
 export const useRouteStore = create<RouteState>((set) => ({
@@ -74,7 +74,7 @@ export const useRouteStore = create<RouteState>((set) => ({
   remove: async (id) => {
     const res = await routeApi.delete(id);
     if (res.success) { const r = await routeApi.getAll(); set({ routes: r.data || [] }); }
-    return { success: res.success, error: res.error };
+    return { success: res.success, error: res.error, deletedTrips: res.data?.deletedTrips };
   },
 }));
 

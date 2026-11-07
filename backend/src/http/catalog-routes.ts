@@ -156,8 +156,27 @@ catalogRouter.patch('/routes/:id', authenticate, requireAdmin, async (req, res) 
 });
 
 catalogRouter.delete('/routes/:id', authenticate, requireAdmin, async (req, res) => {
-  await prisma.route.delete({ where: { id: pathId(req.params.id) } });
-  return sendSuccess(res, null, 200, 'Route deleted');
+  const routeId = pathId(req.params.id);
+  const result = await prisma.$transaction(async tx => {
+    const route = await tx.route.findUnique({ where: { id: routeId }, select: { id: true } });
+    if (!route) throw new ApiError(404, 'Route not found', 'NOT_FOUND');
+
+    // Force delete dependent trips first. VehicleLocation.tripId uses SetNull,
+    // so GPS points remain in the database without their deleted trip link.
+    const deletedTrips = await tx.trip.deleteMany({ where: { routeId } });
+    await tx.route.delete({ where: { id: routeId } });
+
+    return { deletedTrips: deletedTrips.count };
+  });
+
+  return sendSuccess(
+    res,
+    result,
+    200,
+    result.deletedTrips > 0
+      ? `Route permanently deleted. ${result.deletedTrips} linked trip record(s) were deleted; GPS location records were retained.`
+      : 'Route permanently deleted',
+  );
 });
 
 catalogRouter.get('/stops', optionalAuthenticate, async (req, res) => {
