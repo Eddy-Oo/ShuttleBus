@@ -6,9 +6,10 @@ const prisma = new PrismaClient();
 
 const stops = [
   // Provisional campus waypoints based on the official RSU building map.
-  // These coordinates are approximate and are not verified curbside pickup points.
+  // These coordinates are provisional campus waypoints, not verified curbside pickup points.
+  // Building names follow the RSU campus map; added building coordinates are approximate estimates.
   // The uploaded Google My Maps KML was a NetworkLink only, so it did not contain route geometry.
-  // Confirm selected boarding points and road-following geometry before live navigation.
+  // Confirm exact positions and road-following geometry before using for live navigation.
   { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.964355, longitude: 100.586705 },
   { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building (Building 1)', latitude: 13.96472, longitude: 100.58648 },
   { id: 'rsu-stop-3', nameTh: 'ศูนย์นักศึกษา', nameEn: 'Student Center (Building 6)', latitude: 13.96405, longitude: 100.58612 },
@@ -16,10 +17,16 @@ const stops = [
   { id: 'rsu-stop-5', nameTh: 'อาคารรังสิตประยูรศักดิ์', nameEn: 'Rangsit Prayurasak Building (Building 12)', latitude: 13.96372, longitude: 100.58712 },
   { id: 'rsu-stop-6', nameTh: 'อาคารนันทนาการ', nameEn: 'Recreation Building (Building 14)', latitude: 13.96352, longitude: 100.58638 },
   { id: 'rsu-stop-7', nameTh: 'อาคารวิษณุรัตน์', nameEn: 'Wisanu-rat Building (Building 5)', latitude: 13.96482, longitude: 100.58725 },
+  // Expanded campus waypoints. Approximate coordinates are for the first demo version only.
+  { id: 'rsu-stop-8', nameTh: 'อาคารคุณหญิงพัฒนา', nameEn: 'Khunying Phatthana Building (Building 8)', latitude: 13.96505, longitude: 100.58525 },
+  { id: 'rsu-stop-9', nameTh: 'อาคารประสิทธิ์พัฒนา', nameEn: 'Prasit Phatthana Building (Building 9)', latitude: 13.96555, longitude: 100.58565 },
+  { id: 'rsu-stop-15', nameTh: 'อาคาร Digital Multimedia Complex', nameEn: 'Digital Multimedia Complex (Building 15)', latitude: 13.96827, longitude: 100.58515 },
+  { id: 'rsu-stop-16', nameTh: 'อาคารบริการ', nameEn: 'Service Building (Building 16)', latitude: 13.96765, longitude: 100.58570 },
+  { id: 'rsu-stop-19', nameTh: 'อาคารสถาปัตยกรรม', nameEn: 'Architecture Building (Building 19)', latitude: 13.96375, longitude: 100.58525 },
 ];
 
 const routes = [
-  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-7', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-3', 'rsu-stop-4'], closeLoop: true },
+  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-7', 'rsu-stop-8', 'rsu-stop-9', 'rsu-stop-15', 'rsu-stop-16', 'rsu-stop-19', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-3', 'rsu-stop-4'], closeLoop: true },
 ];
 
 const vehicles = [
