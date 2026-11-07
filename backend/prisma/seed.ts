@@ -5,32 +5,21 @@ import { PrismaClient, type Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const stops = [
-  { id: 'stop-1', nameTh: 'ประตูหลัก', nameEn: 'Main Gate', latitude: 14.0310, longitude: 100.6500 },
-  { id: 'stop-2', nameTh: 'อาคารสำนักงาน', nameEn: 'Admin Building', latitude: 14.0318, longitude: 100.6508 },
-  { id: 'stop-3', nameTh: 'คณะวิศวกรรมศาสตร์', nameEn: 'Faculty of Engineering', latitude: 14.0328, longitude: 100.6518 },
-  { id: 'stop-4', nameTh: 'คณะวิทยาศาสตร์', nameEn: 'Faculty of Science', latitude: 14.0338, longitude: 100.6528 },
-  { id: 'stop-5', nameTh: 'คณะบริหารธุรกิจ', nameEn: 'Faculty of Business', latitude: 14.0345, longitude: 100.6515 },
-  { id: 'stop-6', nameTh: 'หอสมุดกลาง', nameEn: 'Central Library', latitude: 14.0332, longitude: 100.6505 },
-  { id: 'stop-7', nameTh: 'องค์การนักศึกษา', nameEn: 'Student Union', latitude: 14.0322, longitude: 100.6495 },
-  { id: 'stop-8', nameTh: 'ศูนย์กีฬา', nameEn: 'Sports Complex', latitude: 14.0342, longitude: 100.6535 },
-  { id: 'stop-9', nameTh: 'โรงอาหาร', nameEn: 'Canteen Area', latitude: 14.0325, longitude: 100.6512 },
-  { id: 'stop-10', nameTh: 'ศูนย์คอมพิวเตอร์', nameEn: 'Computer Center', latitude: 14.0335, longitude: 100.6522 },
+  { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.9645, longitude: 100.5858 },
+  { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building', latitude: 13.9650, longitude: 100.5865 },
+  { id: 'rsu-stop-3', nameTh: 'วิทยาลัยนานาชาติ', nameEn: 'Rangsit University International College', latitude: 13.9637, longitude: 100.5875 },
+  { id: 'rsu-stop-4', nameTh: 'หอสมุด', nameEn: 'University Library', latitude: 13.9641, longitude: 100.5870 },
+  { id: 'rsu-stop-5', nameTh: 'ศูนย์กิจกรรมนักศึกษา', nameEn: 'Student Center', latitude: 13.9633, longitude: 100.5864 },
+  { id: 'rsu-stop-6', nameTh: 'โรงอาหาร', nameEn: 'University Canteen', latitude: 13.9638, longitude: 100.5859 },
+  { id: 'rsu-stop-7', nameTh: 'โรงยิม', nameEn: 'Gymnasium', latitude: 13.9628, longitude: 100.5872 },
 ];
 
 const routes = [
-  { id: 'route-1', name: 'Blue Line — Main Gate Loop', color: '#2563EB', stopIds: ['stop-1', 'stop-2', 'stop-9', 'stop-6', 'stop-5', 'stop-7'], closeLoop: true },
-  { id: 'route-2', name: 'Green Line — Academic Zone', color: '#16A34A', stopIds: ['stop-1', 'stop-3', 'stop-4', 'stop-10', 'stop-8'], closeLoop: false },
-  { id: 'route-3', name: 'Red Line — Student Services', color: '#DC2626', stopIds: ['stop-1', 'stop-6', 'stop-9', 'stop-7', 'stop-5'], closeLoop: false },
+  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-3', 'rsu-stop-4', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-7'], closeLoop: true },
 ];
 
 const vehicles = [
-  { id: 'v-1', name: 'Shuttle Bus 01', type: 'bus', assignedRouteId: 'route-1', status: 'active' as const },
-  { id: 'v-2', name: 'Shuttle Bus 02', type: 'bus', assignedRouteId: 'route-2', status: 'active' as const },
-  { id: 'v-3', name: 'Shuttle Bus 03', type: 'minibus', assignedRouteId: 'route-3', status: 'active' as const },
-  { id: 'v-4', name: 'Shuttle Bus 04', type: 'bus', assignedRouteId: null, status: 'maintenance' as const },
-  { id: 'v-5', name: 'Shuttle Bus 05', type: 'bus', assignedRouteId: 'route-1', status: 'active' as const },
-  { id: 'v-6', name: 'Shuttle Bus 06', type: 'minibus', assignedRouteId: 'route-2', status: 'active' as const },
-  { id: 'v-7', name: 'Shuttle Bus 07', type: 'bus', assignedRouteId: 'route-3', status: 'active' as const },
+  { id: 'rsu-shuttle-01', name: 'RSU Shuttle Bus 01', type: 'bus', assignedRouteId: 'rsu-campus-loop', status: 'active' as const },
 ];
 
 async function main() {
@@ -133,7 +122,43 @@ async function main() {
     });
   }
 
-  console.info(`Seeded admin ${username}, ${routes.length} routes, ${stops.length} stops, and ${vehicles.length} vehicles.`);
+  // Remove obsolete seeded routes, vehicles, and stops where no trip history depends on them.
+  // Historical trip records are preserved; related records are left in place if referenced by a trip.
+  const obsoleteRoutes = await prisma.route.findMany({
+    where: { id: { notIn: routes.map(route => route.id) } },
+    select: { id: true, _count: { select: { trips: true } } },
+  });
+  let preservedRoutes = 0;
+  for (const oldRoute of obsoleteRoutes) {
+    if (oldRoute._count.trips > 0) {
+      preservedRoutes += 1;
+      continue;
+    }
+    await prisma.routeStop.deleteMany({ where: { routeId: oldRoute.id } });
+    await prisma.route.delete({ where: { id: oldRoute.id } });
+  }
+
+  const obsoleteVehicles = await prisma.vehicle.findMany({
+    where: { id: { notIn: vehicles.map(vehicle => vehicle.id) } },
+    select: { id: true, _count: { select: { trips: true } } },
+  });
+  let preservedVehicles = 0;
+  for (const oldVehicle of obsoleteVehicles) {
+    if (oldVehicle._count.trips > 0) {
+      preservedVehicles += 1;
+      continue;
+    }
+    await prisma.vehicle.delete({ where: { id: oldVehicle.id } });
+  }
+
+  await prisma.stop.deleteMany({
+    where: {
+      id: { notIn: stops.map(stop => stop.id) },
+      routeStops: { none: {} },
+    },
+  });
+
+  console.info(`Seeded admin ${username}, ${routes.length} route, ${stops.length} stops, and ${vehicles.length} vehicle. Removed unused old records. Preserved ${preservedRoutes} old routes and ${preservedVehicles} old vehicles because trip history references them.`);
 }
 
 main()
