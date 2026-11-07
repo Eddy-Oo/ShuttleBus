@@ -94,19 +94,18 @@ if (new Set(stops.map((stop) => stop.stopOrder)).size !== stops.length) {
 // 2. Read campus route geometry from GeoJSON
 // --------------------------------------------------
 
-const routeGeometry = JSON.parse(
+const routeGeoJSON = JSON.parse(
   readFileSync(join(__dirname, "../geojson/rsu-campus-loop.geojson"), "utf8")
-) as {
-  type: string;
-  coordinates: number[][];
-};
+);
+
+const routeGeometry = routeGeoJSON.geometry ?? routeGeoJSON;
 
 if (
   routeGeometry.type !== "LineString" ||
   !Array.isArray(routeGeometry.coordinates) ||
   routeGeometry.coordinates.length < 2 ||
   routeGeometry.coordinates.some(
-    (coordinate) =>
+    (coordinate: unknown) =>
       !Array.isArray(coordinate) ||
       coordinate.length < 2 ||
       !Number.isFinite(coordinate[0]) ||
