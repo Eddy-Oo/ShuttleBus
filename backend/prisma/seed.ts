@@ -85,12 +85,20 @@ async function main() {
       orderBy: { stopOrder: 'asc' },
     });
 
-    const lowestOrder = Math.min(0, ...existingRouteStops.map(item => item.stopOrder));
+    // Use temporary positive orders above the current range. The database
+    // enforces RouteStop_stopOrder_positive_check, so temporary values must
+    // remain positive as well as unique.
+    const highestExistingOrder = Math.max(
+      0,
+      ...existingRouteStops.map(item => item.stopOrder),
+    );
+    const temporaryOrderStart =
+      Math.max(highestExistingOrder, route.stopIds.length) + existingRouteStops.length + 1;
 
     for (let index = 0; index < existingRouteStops.length; index += 1) {
       await prisma.routeStop.update({
         where: { id: existingRouteStops[index]!.id },
-        data: { stopOrder: lowestOrder - index - 1 },
+        data: { stopOrder: temporaryOrderStart + index },
       });
     }
 
