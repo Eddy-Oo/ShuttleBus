@@ -77,12 +77,42 @@ async function main() {
       update: {},
     });
 
+    // Temporarily move existing stop orders below the current range so that
+    // changing the order cannot collide with the routeId + stopOrder unique key.
+    const existingRouteStops = await prisma.routeStop.findMany({
+      where: { routeId: route.id },
+      select: { id: true, stopId: true, stopOrder: true },
+      orderBy: { stopOrder: 'asc' },
+    });
+
+    const lowestOrder = Math.min(0, ...existingRouteStops.map(item => item.stopOrder));
+
+    for (let index = 0; index < existingRouteStops.length; index += 1) {
+      await prisma.routeStop.update({
+        where: { id: existingRouteStops[index]!.id },
+        data: { stopOrder: lowestOrder - index - 1 },
+      });
+    }
+
+    // Upsert the configured stops in their intended order.
     for (let index = 0; index < route.stopIds.length; index += 1) {
       const stopId = route.stopIds[index]!;
       await prisma.routeStop.upsert({
         where: { routeId_stopId: { routeId: route.id, stopId } },
         create: { id: `rs-${route.id}-${index + 1}`, routeId: route.id, stopId, stopOrder: index + 1 },
-        update: {},
+        update: { stopOrder: index + 1 },
+      });
+    }
+
+    // Preserve any existing route-stop records not listed in this seed,
+    // placing them after the configured stops instead of deleting them.
+    const configuredStopIds = new Set(route.stopIds);
+    const remainingStops = existingRouteStops.filter(item => !configuredStopIds.has(item.stopId));
+
+    for (let index = 0; index < remainingStops.length; index += 1) {
+      await prisma.routeStop.update({
+        where: { id: remainingStops[index]!.id },
+        data: { stopOrder: route.stopIds.length + index + 1 },
       });
     }
   }
