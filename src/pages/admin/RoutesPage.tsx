@@ -112,7 +112,7 @@ export default function RoutesPage() {
 
   const handleDelete = async (id: string) => {
     const route = routes.find(item => item.id === id);
-    if (!confirm(`Remove route "${route?.name || id}"? If it has trip history, it will be archived instead. Historical trips and GPS records will be preserved.`)) return;
+    if (!confirm(`PERMANENTLY DELETE route "${route?.name || id}"? This cannot be undone. Any linked trip history will also be deleted. GPS location records will be retained without their trip links. Continue?`)) return;
 
     const result = await remove(id);
     if (!result.success) {
@@ -121,11 +121,9 @@ export default function RoutesPage() {
     }
 
     if (selectedRouteId === id) setSelectedRouteId(null);
-    if (result.archived) {
-      flash(`Route archived. Its ${result.tripCount || 0} historical trip record(s) were preserved.`);
-    } else {
-      flash('Route deleted successfully.');
-    }
+    flash(result.deletedTrips
+      ? `Route permanently deleted. ${result.deletedTrips} linked trip record(s) were also deleted; GPS points were retained.`
+      : 'Route permanently deleted successfully.');
   };
 
   /** Build a LineString from the route's ordered stops (a straight-line path, not road routing). */
