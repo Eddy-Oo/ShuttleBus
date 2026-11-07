@@ -17,16 +17,16 @@ const stops = [
   { id: 'rsu-stop-5', nameTh: 'อาคารรังสิตประยูรศักดิ์', nameEn: 'Rangsit Prayurasak Building (Building 12)', latitude: 13.96372, longitude: 100.58712 },
   { id: 'rsu-stop-6', nameTh: 'อาคารนันทนาการ', nameEn: 'Recreation Building (Building 14)', latitude: 13.96352, longitude: 100.58638 },
   { id: 'rsu-stop-7', nameTh: 'อาคารวิษณุรัตน์', nameEn: 'Wisanu-rat Building (Building 5)', latitude: 13.96482, longitude: 100.58725 },
-  // Expanded campus waypoints. Approximate coordinates are for the first demo version only.
+  // Selected outer-campus waypoints for a shorter perimeter-style loop.
+  // Approximate coordinates are for the first demo version only.
   { id: 'rsu-stop-8', nameTh: 'อาคารคุณหญิงพัฒนา', nameEn: 'Khunying Phatthana Building (Building 8)', latitude: 13.96505, longitude: 100.58525 },
-  { id: 'rsu-stop-9', nameTh: 'อาคารประสิทธิ์พัฒนา', nameEn: 'Prasit Phatthana Building (Building 9)', latitude: 13.96555, longitude: 100.58565 },
   { id: 'rsu-stop-15', nameTh: 'อาคาร Digital Multimedia Complex', nameEn: 'Digital Multimedia Complex (Building 15)', latitude: 13.96827, longitude: 100.58515 },
   { id: 'rsu-stop-16', nameTh: 'อาคารบริการ', nameEn: 'Service Building (Building 16)', latitude: 13.96765, longitude: 100.58570 },
   { id: 'rsu-stop-19', nameTh: 'อาคารสถาปัตยกรรม', nameEn: 'Architecture Building (Building 19)', latitude: 13.96375, longitude: 100.58525 },
 ];
 
 const routes = [
-  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-7', 'rsu-stop-8', 'rsu-stop-9', 'rsu-stop-15', 'rsu-stop-16', 'rsu-stop-19', 'rsu-stop-5', 'rsu-stop-6', 'rsu-stop-3', 'rsu-stop-4'], closeLoop: true },
+  { id: 'rsu-campus-loop', name: 'RSU Campus Loop', color: '#2563EB', stopIds: ['rsu-stop-1', 'rsu-stop-2', 'rsu-stop-8', 'rsu-stop-15', 'rsu-stop-16', 'rsu-stop-19', 'rsu-stop-5', 'rsu-stop-6'], closeLoop: true },
 ];
 
 const vehicles = [
@@ -110,22 +110,16 @@ async function main() {
       const stopId = route.stopIds[index]!;
       await prisma.routeStop.upsert({
         where: { routeId_stopId: { routeId: route.id, stopId } },
-        create: { id: `rs-${route.id}-${index + 1}`, routeId: route.id, stopId, stopOrder: index + 1 },
+        create: { routeId: route.id, stopId, stopOrder: index + 1 },
         update: { stopOrder: index + 1 },
       });
     }
 
-    // Preserve any existing route-stop records not listed in this seed,
-    // placing them after the configured stops instead of deleting them.
-    const configuredStopIds = new Set(route.stopIds);
-    const remainingStops = existingRouteStops.filter(item => !configuredStopIds.has(item.stopId));
-
-    for (let index = 0; index < remainingStops.length; index += 1) {
-      await prisma.routeStop.update({
-        where: { id: remainingStops[index]!.id },
-        data: { stopOrder: route.stopIds.length + index + 1 },
-      });
-    }
+    // Remove old route-stop links that are no longer part of this loop.
+    // This keeps the route limited to the configured perimeter waypoints.
+    await prisma.routeStop.deleteMany({
+      where: { routeId: route.id, stopId: { notIn: route.stopIds } },
+    });
   }
 
   for (const vehicle of vehicles) {
