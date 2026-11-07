@@ -12,11 +12,8 @@ const stops = [
   // Confirm exact positions and road-following geometry before using for live navigation.
   { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.964355, longitude: 100.586705 },
   { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building (Building 1)', latitude: 13.96472, longitude: 100.58648 },
-  { id: 'rsu-stop-3', nameTh: 'ศูนย์นักศึกษา', nameEn: 'Student Center (Building 6)', latitude: 13.96405, longitude: 100.58612 },
-  { id: 'rsu-stop-4', nameTh: 'หอสมุด', nameEn: 'University Library (Building 7)', latitude: 13.96428, longitude: 100.58698 },
   { id: 'rsu-stop-5', nameTh: 'อาคารรังสิตประยูรศักดิ์', nameEn: 'Rangsit Prayurasak Building (Building 12)', latitude: 13.96372, longitude: 100.58712 },
   { id: 'rsu-stop-6', nameTh: 'อาคารนันทนาการ', nameEn: 'Recreation Building (Building 14)', latitude: 13.96352, longitude: 100.58638 },
-  { id: 'rsu-stop-7', nameTh: 'อาคารวิษณุรัตน์', nameEn: 'Wisanu-rat Building (Building 5)', latitude: 13.96482, longitude: 100.58725 },
   // Selected outer-campus waypoints for a shorter perimeter-style loop.
   // Approximate coordinates are for the first demo version only.
   { id: 'rsu-stop-8', nameTh: 'อาคารคุณหญิงพัฒนา', nameEn: 'Khunying Phatthana Building (Building 8)', latitude: 13.96505, longitude: 100.58525 },
