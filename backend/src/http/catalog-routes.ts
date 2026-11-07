@@ -158,32 +158,24 @@ catalogRouter.patch('/routes/:id', authenticate, requireAdmin, async (req, res) 
 catalogRouter.delete('/routes/:id', authenticate, requireAdmin, async (req, res) => {
   const routeId = pathId(req.params.id);
   const result = await prisma.$transaction(async tx => {
-    const route = await tx.route.findUnique({ where: { id: routeId }, select: { id: true, status: true } });
+    const route = await tx.route.findUnique({ where: { id: routeId }, select: { id: true } });
     if (!route) throw new ApiError(404, 'Route not found', 'NOT_FOUND');
 
-    // Trips are historical records. Archive routes that have ever been used instead of
-    // deleting them; routes with no trip history can be safely removed.
-    const tripCount = await tx.trip.count({ where: { routeId } });
-    if (tripCount > 0) {
-      const archived = await tx.route.update({
-        where: { id: routeId },
-        data: { status: 'inactive' },
-        select: { id: true, name: true, status: true },
-      });
-      return { archived: true, route: archived, tripCount };
-    }
-
+    // Force delete dependent trips first. VehicleLocation.tripId uses SetNull,
+    // so GPS points remain in the database without their deleted trip link.
+    const deletedTrips = await tx.trip.deleteMany({ where: { routeId } });
     await tx.route.delete({ where: { id: routeId } });
-    return { archived: false, route: null, tripCount: 0 };
+
+    return { deletedTrips: deletedTrips.count };
   });
 
   return sendSuccess(
     res,
     result,
     200,
-    result.archived
-      ? `Route archived because it has ${result.tripCount} trip record(s). Trip history was preserved.`
-      : 'Route deleted',
+    result.deletedTrips > 0
+      ? `Route permanently deleted. ${result.deletedTrips} linked trip record(s) were deleted; GPS location records were retained.`
+      : 'Route permanently deleted',
   );
 });
 
