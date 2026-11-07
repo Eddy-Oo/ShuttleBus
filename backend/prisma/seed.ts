@@ -5,13 +5,15 @@ import { PrismaClient, type Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const stops = [
-  // Approximate campus-side stop coordinates, centered on the published RSU campus location.
-  // Confirm exact curbside boarding points on site before using for live navigation.
+  // Provisional campus waypoints based on the official RSU building map.
+  // These coordinates are approximate and are not verified curbside pickup points.
+  // The uploaded Google My Maps KML was a NetworkLink only, so it did not contain route geometry.
+  // Confirm selected boarding points and road-following geometry before live navigation.
   { id: 'rsu-stop-1', nameTh: 'ประตูหลัก', nameEn: 'RSU Main Gate', latitude: 13.964355, longitude: 100.586705 },
   { id: 'rsu-stop-2', nameTh: 'อาคารอาทิตย์ อุไรรัตน์', nameEn: 'Arthit Ourairat Building (Building 1)', latitude: 13.96472, longitude: 100.58648 },
   { id: 'rsu-stop-3', nameTh: 'ศูนย์นักศึกษา', nameEn: 'Student Center (Building 6)', latitude: 13.96405, longitude: 100.58612 },
   { id: 'rsu-stop-4', nameTh: 'หอสมุด', nameEn: 'University Library (Building 7)', latitude: 13.96428, longitude: 100.58698 },
-  { id: 'rsu-stop-5', nameTh: 'วิทยาลัยนานาชาติ', nameEn: 'International College (Building 12)', latitude: 13.96372, longitude: 100.58712 },
+  { id: 'rsu-stop-5', nameTh: 'อาคารรังสิตประยูรศักดิ์', nameEn: 'Rangsit Prayurasak Building (Building 12)', latitude: 13.96372, longitude: 100.58712 },
   { id: 'rsu-stop-6', nameTh: 'อาคารนันทนาการ', nameEn: 'Recreation Building (Building 14)', latitude: 13.96352, longitude: 100.58638 },
   { id: 'rsu-stop-7', nameTh: 'อาคารวิษณุรัตน์', nameEn: 'Wisanu-rat Building (Building 5)', latitude: 13.96482, longitude: 100.58725 },
 ];
@@ -56,6 +58,7 @@ async function main() {
   const stopById = new Map(stops.map(stop => [stop.id, stop]));
   for (const route of routes) {
     const geometryStops = route.closeLoop ? [...route.stopIds, route.stopIds[0]!] : route.stopIds;
+    // This is a provisional straight-line connection between waypoints, not a road-snapped route.
     const geometry = {
       type: 'LineString',
       coordinates: geometryStops.map(id => {
