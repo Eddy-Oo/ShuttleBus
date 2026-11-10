@@ -15,6 +15,7 @@ export function createVehicleLocationRouter(io: Server) {
   router.post('/vehicle/location', authenticate, requireVehicle, async (req, res) => {
     const input = vehicleLocationSchema.parse(req.body);
     const vehicleId = req.auth!.role === 'VEHICLE' ? req.auth!.vehicleId : '';
+    const tokenVersion = req.auth!.role === 'VEHICLE' ? req.auth!.tokenVersion : -1;
 
     if (vehicleId !== input.vehicleId) {
       throw new ApiError(403, 'Token does not belong to this vehicle', 'VEHICLE_MISMATCH');
@@ -32,7 +33,7 @@ export function createVehicleLocationRouter(io: Server) {
     if (!vehicle || vehicle.status !== 'active') {
       throw new ApiError(403, 'Vehicle is not active', 'VEHICLE_INACTIVE');
     }
-    if (vehicle.tokenVersion !== req.auth!.tokenVersion) {
+    if (vehicle.tokenVersion !== tokenVersion) {
       throw new ApiError(403, 'Vehicle token has been revoked', 'TOKEN_REVOKED');
     }
 
@@ -67,7 +68,7 @@ export function createVehicleLocationRouter(io: Server) {
         where: {
           id: vehicleId,
           status: 'active',
-          tokenVersion: req.auth!.tokenVersion,
+          tokenVersion,
           OR: [{ lastLocationAt: null }, { lastLocationAt: { lte: recordedAt } }],
         },
         data: {
