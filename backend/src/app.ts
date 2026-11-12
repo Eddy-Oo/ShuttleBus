@@ -5,6 +5,7 @@ import { prisma } from './prisma.js';
 import { authRouter } from './http/auth-routes.js';
 import { catalogRouter } from './http/catalog-routes.js';
 import { createTripRouter } from './http/trip-routes.js';
+import { createVehicleLocationRouter } from './http/vehicle-location-routes.js';
 import { errorHandler, sendSuccess } from './http/errors.js';
 import type { Server } from 'socket.io';
 
@@ -45,6 +46,7 @@ export function createApp(io: Server) {
   app.use('/api/auth', authRouter);
   app.use('/api', catalogRouter);
   app.use('/api', createTripRouter(io));
+  app.use('/api', createVehicleLocationRouter(io));
 
   app.use((_req, res) => {
     res.status(404).json({ success: false, error: 'Endpoint not found', code: 'NOT_FOUND' });
