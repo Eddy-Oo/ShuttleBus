@@ -28,7 +28,7 @@ export function createVehicleLocationRouter(io: Server) {
     // Default mapping for the RSU LoRaWAN tracker. Environment configuration
     // can add other devices or override this mapping.
     const defaultDeviceMap: Record<string, string> = {
-      'sensor-f2': 'rsu-shuttle-03',
+      'sensor-c4': 'rsu-shuttle-03',
     };
     let configuredDeviceMap: Record<string, string>;
     try {
