@@ -129,6 +129,9 @@ test('real PostgreSQL + REST + Socket.IO sprint acceptance', { skip: process.env
       assert.equal(broadcasted.vehicleName, vehicle.name);
       assert.equal((await call(`/api/vehicles/${vehicle.id}`)).currentLatitude, payload.latitude);
       assert.equal(await prisma.vehicleLocation.count({ where: { vehicleId: vehicle.id } }), 1);
+      const savedLocation = await prisma.vehicleLocation.findFirst({ where: { vehicleId: vehicle.id } });
+      assert.equal(savedLocation.source, 'IPHONE');
+      assert.equal(savedLocation.deviceId, `iphone-${vehicle.id}`);
       await assert.rejects(publishLocation(browser, payload), /VEHICLE_AUTH_REQUIRED/);
       await assert.rejects(publishLocation(publisher, { ...payload, vehicleId: 'other' }), /VEHICLE_MISMATCH/);
       await assert.rejects(publishLocation(publisher, { ...payload, latitude: 91 }), /VALIDATION_ERROR/);
