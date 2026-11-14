@@ -89,5 +89,7 @@ export const vehicleLocationSchema = z.object({
   longitude: z.number().finite().min(-180).max(180),
   speed: z.number().finite().min(0).nullable().optional(),
   heading: z.number().finite().min(0).max(360).nullable().optional(),
+  source: z.enum(['ESP32', 'IPHONE', 'LORAWAN', 'SIMULATOR']).optional(),
+  deviceId: z.string().trim().min(1).max(100).optional(),
   recordedAt: z.string().datetime({ offset: true }).optional(),
 }).strict();
