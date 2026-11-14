@@ -25,12 +25,21 @@ export function createVehicleLocationRouter(io: Server) {
       throw new ApiError(401, 'Invalid LoRaWAN webhook credentials', 'LORAWAN_UNAUTHORIZED');
     }
 
-    let deviceMap: Record<string, string>;
+    // Default mapping for the RSU LoRaWAN tracker. Environment configuration
+    // can add other devices or override this mapping.
+    const defaultDeviceMap: Record<string, string> = {
+      'sensor-f2': 'rsu-shuttle-03',
+    };
+    let configuredDeviceMap: Record<string, string>;
     try {
-      deviceMap = JSON.parse(process.env.LORAWAN_DEVICE_MAP ?? '{}') as Record<string, string>;
+      configuredDeviceMap = JSON.parse(process.env.LORAWAN_DEVICE_MAP ?? '{}') as Record<string, string>;
+      if (!configuredDeviceMap || Array.isArray(configuredDeviceMap) || typeof configuredDeviceMap !== 'object') {
+        throw new Error('Expected a JSON object');
+      }
     } catch {
-      throw new ApiError(500, 'LORAWAN_DEVICE_MAP must be valid JSON', 'LORAWAN_CONFIG_ERROR');
+      throw new ApiError(500, 'LORAWAN_DEVICE_MAP must be a valid JSON object', 'LORAWAN_CONFIG_ERROR');
     }
+    const deviceMap = { ...defaultDeviceMap, ...configuredDeviceMap };
 
     const body = req.body as {
       end_device_ids?: { device_id?: unknown };
