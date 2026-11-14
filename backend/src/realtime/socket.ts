@@ -58,6 +58,11 @@ async function handleLocationUpdate(io: Server, socket: RealtimeSocket, payload:
       throw new ApiError(400, 'Invalid vehicle location payload', 'VALIDATION_ERROR', parsed.error.issues);
     }
     const input = parsed.data;
+    const source = input.source ?? 'IPHONE';
+    if (source !== 'IPHONE' && source !== 'SIMULATOR') {
+      throw new ApiError(400, 'Socket GPS source must be IPHONE or SIMULATOR', 'INVALID_GPS_SOURCE');
+    }
+    const deviceId = input.deviceId ?? (source === 'IPHONE' ? `iphone-${principal.vehicleId}` : `simulator-${principal.vehicleId}`);
     if (principal.vehicleId !== input.vehicleId) {
       throw new ApiError(403, 'Token does not belong to this vehicle', 'VEHICLE_MISMATCH');
     }
@@ -94,6 +99,8 @@ async function handleLocationUpdate(io: Server, socket: RealtimeSocket, payload:
       longitude: input.longitude,
       speed: input.speed ?? null,
       heading: input.heading ?? null,
+      source,
+      deviceId,
       recordedAt,
     };
     await prisma.$transaction(async tx => {
@@ -135,6 +142,8 @@ async function handleLocationUpdate(io: Server, socket: RealtimeSocket, payload:
       longitude: input.longitude,
       ...(input.speed !== undefined ? { speed: input.speed } : {}),
       ...(input.heading !== undefined ? { heading: input.heading } : {}),
+      source,
+      deviceId,
       recordedAt: recordedAt.toISOString(),
     };
     io.to('web').emit('vehicle:location:update', update);
