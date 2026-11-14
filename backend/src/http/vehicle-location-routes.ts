@@ -21,6 +21,11 @@ export function createVehicleLocationRouter(io: Server) {
       throw new ApiError(403, 'Token does not belong to this vehicle', 'VEHICLE_MISMATCH');
     }
 
+    if (input.source && input.source !== 'ESP32') {
+      throw new ApiError(400, 'This endpoint is reserved for ESP32 GPS devices', 'INVALID_GPS_SOURCE');
+    }
+    const source = 'ESP32' as const;
+    const deviceId = input.deviceId ?? `esp32-${vehicleId}`;
     const recordedAt = input.recordedAt ? new Date(input.recordedAt) : new Date();
     if (recordedAt.getTime() > Date.now() + 5 * 60 * 1000) {
       throw new ApiError(400, 'Location timestamp is too far in the future', 'INVALID_TIMESTAMP');
@@ -91,6 +96,8 @@ export function createVehicleLocationRouter(io: Server) {
           longitude: input.longitude,
           speed: input.speed ?? null,
           heading: input.heading ?? null,
+          source,
+          deviceId,
           recordedAt,
         },
       });
@@ -105,6 +112,8 @@ export function createVehicleLocationRouter(io: Server) {
       longitude: input.longitude,
       ...(input.speed !== undefined ? { speed: input.speed } : {}),
       ...(input.heading !== undefined ? { heading: input.heading } : {}),
+      source,
+      deviceId,
       recordedAt: recordedAt.toISOString(),
     };
 
