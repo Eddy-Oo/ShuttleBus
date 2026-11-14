@@ -57,7 +57,7 @@ if (process.argv.includes('--help')) {
       if (config.loops !== 1) console.info(`Pass ${pass}${config.loops ? `/${config.loops}` : ''}`);
       for (const point of routePoints(route.geometry, config.steps)) {
         if (abort.signal.aborted) break;
-        await publishLocation(socket, { vehicleId: config.vehicleId, tripId: trip.id, ...point, speed: speedKmh, recordedAt: new Date().toISOString() });
+        await publishLocation(socket, { vehicleId: config.vehicleId, tripId: trip.id, ...point, speed: speedKmh, source: 'SIMULATOR', deviceId: `simulator-${config.vehicleId}`, recordedAt: new Date().toISOString() });
         count++;
         console.info(`Accepted ${count}: ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)} heading ${point.heading}°`);
         await sleep(config.intervalMs, undefined, { signal: abort.signal });
