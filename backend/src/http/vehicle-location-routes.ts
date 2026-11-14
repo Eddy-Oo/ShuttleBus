@@ -44,7 +44,11 @@ export function createVehicleLocationRouter(io: Server) {
     const body = req.body as {
       end_device_ids?: { device_id?: unknown };
       received_at?: unknown;
-      uplink_message?: { decoded_payload?: Record<string, unknown> };
+      uplink_message?: {
+        received_at?: unknown;
+        decoded_payload?: Record<string, unknown>;
+        locations?: Record<string, unknown>;
+      };
     };
     const ttnDeviceId = typeof body?.end_device_ids?.device_id === 'string'
       ? body.end_device_ids.device_id
@@ -55,16 +59,43 @@ export function createVehicleLocationRouter(io: Server) {
     }
 
     const decoded = body.uplink_message?.decoded_payload;
-    const latitude = decoded?.latitude;
-    const longitude = decoded?.longitude;
+    const gpsLocation = body.uplink_message?.locations?.['frm-payload'] as
+      | { latitude?: unknown; longitude?: unknown; source?: unknown }
+      | undefined;
+
+    // Some trackers report a failed GPS attempt while The Things Stack still
+    // includes the last known coordinates in its locations object. Acknowledge
+    // the webhook, but never save those coordinates as a new live position.
+    const payloadType = typeof decoded?.payload_type === 'string'
+      ? decoded.payload_type.trim().toLowerCase()
+      : '';
+    if (payloadType.includes('failure')) {
+      return sendSuccess(res, {
+        accepted: true,
+        ignored: true,
+        reason: typeof decoded?.reasons_for_positioning_failure === 'string'
+          ? decoded.reasons_for_positioning_failure
+          : 'Tracker reported GPS positioning failure',
+        vehicleId,
+        deviceId: ttnDeviceId,
+      }, 200, 'LoRaWAN uplink received; GPS fix ignored');
+    }
+
+    // The tracker places coordinates in uplink_message.locations["frm-payload"],
+    // not in decoded_payload.latitude / decoded_payload.longitude.
+    const latitude = gpsLocation?.latitude;
+    const longitude = gpsLocation?.longitude;
     const speed = decoded?.speed;
     const heading = decoded?.heading;
     if (typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
       || typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      throw new ApiError(400, 'LoRaWAN decoded_payload must contain numeric latitude and longitude', 'LORAWAN_INVALID_PAYLOAD');
+      throw new ApiError(400, 'LoRaWAN uplink must contain numeric coordinates in locations["frm-payload"]', 'LORAWAN_INVALID_PAYLOAD');
     }
 
-    const recordedAt = typeof body.received_at === 'string' ? new Date(body.received_at) : new Date();
+    const receivedAt = typeof body.received_at === 'string'
+      ? body.received_at
+      : body.uplink_message?.received_at;
+    const recordedAt = typeof receivedAt === 'string' ? new Date(receivedAt) : new Date();
     if (!Number.isFinite(recordedAt.getTime()) || recordedAt.getTime() > Date.now() + 5 * 60 * 1000) {
       throw new ApiError(400, 'Invalid LoRaWAN received_at timestamp', 'INVALID_TIMESTAMP');
     }
